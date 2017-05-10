@@ -1,15 +1,12 @@
 ﻿"""
-Test suite for testing SHVC kvazaar
+Beta test
 """
 
-from tests.main import runTests
+from ..TestInstance import TestInstance
+from ..TestSuite import runTests,makeCombiName
 
-if __name__ == "__main__":
-    print("Start tests...")
-    runTests()
-    print("Tests finished.")
 
-    """
+def main():
     seqs = [(r"hevc-B\Kimono1_1920x1080_24.yuv",),
             (r"hevc-B\Cactus_1920x1080_50.yuv",)]
     tests = []
@@ -34,9 +31,7 @@ if __name__ == "__main__":
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),('--preset','ultrafast','--gop','0','-n','5','-r','1','--threads','0')),
                         input_layer_scales = (0.5,1)
                         ))
-    print("Start tests...")
-    runTests(tests,"out",
+    runTests(tests,"Test1",
              layers={"Test2":(-1,),"Test3":(0,),makeCombiName(("Test1","Test2","Test2")):()},
              combi=[("Test1","Test2"),("Test1","Test1"),("Test2","Test1"),("Test2","Test2"),("Test1","Test2","Test2")])
-    """
 

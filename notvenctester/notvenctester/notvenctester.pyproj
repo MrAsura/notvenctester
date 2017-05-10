@@ -6,8 +6,7 @@
     <ProjectGuid>ce33c093-4dcf-4c50-b612-486d3335eaeb</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>notvenctester.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>tests\</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>notvenctester</Name>
@@ -27,6 +26,23 @@
     </Compile>
     <Compile Include="notvenctester.py" />
     <Compile Include="TestInstance.py" />
+    <Compile Include="TestSuite.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\main.py" />
+    <Compile Include="tests\scale_test1.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test1.py" />
+    <Compile Include="tests\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="tests\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
