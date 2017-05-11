@@ -3,7 +3,7 @@ Scalable test
 """
 
 from TestInstance import TestInstance
-from TestSuite import runTests,makeCombiName
+from TestSuite import runTests,makeCombiName,makeLayerCombiName
 
 
 def main():
@@ -28,7 +28,8 @@ def main():
                         input_layer_scales = (0.5,1)
                         ))
 
-    runTests(tests,"scale_test1",
-             layers={},
-             combi=[("EL","BL"),])
+    runTests(tests,"scale_test2",
+             layers={makeLayerCombiName(["BL","EL"]):(-1,)},
+             combi=[("EL","BL")],
+             layer_combi=[("BL","EL")])
 
