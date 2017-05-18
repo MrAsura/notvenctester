@@ -13,12 +13,12 @@ def main():
 
     tests.append( TestInstance(inputs = seqs,
                         test_name = "BL",
-                        layer_args = (("--preset","ultrafast","-n","5",'-r','1'),),
+                        layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),),
                         input_layer_scales = (0.5,)
                         ))
     tests.append( TestInstance(inputs = seqs,
                         test_name = "EL",
-                        layer_args = (("--preset","ultrafast","-n","5",'-r','1'),),
+                        layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),),
                         input_layer_scales = (1,)
                         ))
     tests.append( TestInstance(inputs = seqs,
