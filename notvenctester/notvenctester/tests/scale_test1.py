@@ -2,7 +2,7 @@
 Scalable test
 """
 
-from TestInstance import TestInstance
+from skvzTestInstance import skvzTestInstance
 from TestSuite import runTests,makeCombiName,makeLayerCombiName
 
 
@@ -11,17 +11,17 @@ def main():
             (r"hevc-B\Cactus_1920x1080_50.yuv",)]
     tests = []
 
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "BL",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),),
                         input_layer_scales = (0.5,)
                         ))
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "EL",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),),
                         input_layer_scales = (1,)
                         ))
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Scal",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),
                                       ('--preset','ultrafast','-n','5','-r','1','--gop','0','--threads','0')),

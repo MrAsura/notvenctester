@@ -2,7 +2,7 @@
 Beta test
 """
 
-from ..TestInstance import TestInstance
+from ..skvzTestInstance import skvzTestInstance
 from ..TestSuite import runTests,makeCombiName
 
 
@@ -11,22 +11,22 @@ def main():
             (r"hevc-B\Cactus_1920x1080_50.yuv",)]
     tests = []
 
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Test1",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1'),),
                         input_layer_scales = (0.5,)
                         ))
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Test2",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1'),),
                         input_layer_scales = (1,)
                         ))
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Test3",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),('--preset','ultrafast','--gop','0','-n','5','-r','1','--threads','0')),
                         input_layer_scales = (1,1)
                         ))
-    tests.append( TestInstance(inputs = seqs,
+    tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Test4",
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),('--preset','ultrafast','--gop','0','-n','5','-r','1','--threads','0')),
                         input_layer_scales = (0.5,1)

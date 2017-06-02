@@ -1,22 +1,17 @@
-﻿import subprocess as sp
-import itertools as it
-import re
+﻿
+import abc
 import cfg
+import json
+from pathlib import Path
 
-class TestInstance(object):
-    
-    __LAYER = "--layer"
-    __LAYER_RES = "--layer-res"
-    __QP = "--qp"
-    __INPUT = "--input"
-    __INPUT_RES = "--input-res"
-    __OUTPUT = "--output"
-    __DEBUG = "--debug"
+class TestInstance(abc.ABC):
+    """Abstract base class that defines the interface for test instances"""
 
     """
     Create a test instance object
     @param inputs: Specify input files for each input. Can be a list of input sets for several sequences. Same parameter will be used for each input set.
     @param input_sizes: Specify sizes for each input (if not in filename)
+    @param input_names: Specify a user given name for inputs that will be used to identify sequences that should be the same
     @param layer_args: Specify parameters not give as separate args (iterable with an element for each layer)
     @param layer_sizes: Specify layer sizes (iterable with an element for each layer). Gets overwriten if scales is given
     @param input_layer_scales: Set layer Sizes as input sizes scaled by given values
@@ -25,82 +20,81 @@ class TestInstance(object):
     @param out_name: Name for the output files
     @return self object
     """
-    def __init__(self, test_name, inputs, input_sizes=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
-        self._layer_sizes = layer_sizes
-        self._layer_args = layer_args
-        self._inputs = inputs
-        self._input_sizes = input_sizes
-        self._input_layer_scales = input_layer_scales
-
-        self._qps = qps
-        self._num_layers = max(len(layer_sizes),len(layer_args))
-        
-        self._test_name = test_name
-        if not test_name:
-            self._test_name = inputs[0]
-
-        self._out_name = out_name
-
-        if input_layer_scales:
-            round2 = lambda x,base=2: int(base*round(x/base))
-            strscale = lambda size,scale: "x".join(map(lambda x: str(round2(int(x)*scale)),re.search("_*(\d+)x(\d+)[_.]*",size).group(1,2)))
-            self._layer_sizes = []
-            for (input_set,input_set_sizes) in it.zip_longest(inputs,input_sizes,fillvalue=tuple()):
-                insizes = input_set_sizes
-                fval = 1
-                if not input_set_sizes:
-                    #Get sizes from the given inputs
-                    insizes = input_set
-                    fval = input_set[-1] if len(input_set) < len(input_layer_scales) else 1
-                else:
-                    fval =  input_set_sizes[-1] if len(input_set) < len(input_layer_scales) else 1
-                self._layer_sizes.append( tuple( strscale(size,scale) for (scale,size) in it.zip_longest(input_layer_scales,insizes,fillvalue = fval) ) )
-        
-        #Will contain the execution results
+    @abc.abstractmethod
+    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
         self._results = {}
+        pass
 
-        #return self
+    """
+    Folder to store results
+    """
+    @staticmethod
+    @abc.abstractmethod
+    def _get_res_folder():
+       return str()
 
+    """
+    Get the hash filename used for storing results
+    """
+    @abc.abstractmethod
+    def _get_fname_hash(self):
+        pass
+    
+    """
+    Save results to file
+    """
+    def _save_results(self):
+        fpath = Path(cfg.results + self._get_res_folder() + self._get_fname_hash())
+        if not fpath.parent.exists():
+            fpath.parent.mkdir()
+        file = fpath.open(mode='w')
+        json.dump(self._results,file,indent=2)
+        file.close()
+
+    """
+    Load results from file
+    """
+    def _load_results(self):
+        file = open(cfg.results + self._get_res_folder() + self._get_fname_hash(),mode = 'r')
+        self._results = json.load(file)
+        file.close()
+
+    """
+    Check if the result file for the current test exist
+    """
+    def _results_exist(self):
+        res_file = Path(cfg.results + self._get_res_folder() + self._get_fname_hash())
+        return res_file.is_file()
+
+    """
+    Function that executes the actual tests
+    """
+    @abc.abstractmethod
+    def _run_tests(self):
+        pass
+
+    """
+    Execute the tests
+    """
     def run(self):
-        runs = {}
-        for (seqs,sizes) in zip(self._inputs,self._layer_sizes):
-            seq_runs = {}
-            for qp in self._qps:
-                cmd = [cfg.skvz_bin]
-                for (l,l_res,l_arg) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,fillvalue=None):
-                    if l is not None:
-                        cmd.append(l)
-                    if l_arg is not None:
-                        cmd.extend(l_arg)
-                    if l_res is not None:
-                        cmd.extend([self.__LAYER_RES,l_res])
-                    cmd.extend([self.__QP,str(qp)])
-                        
-                    for input in seqs:
-                        cmd.extend([self.__INPUT,cfg.sequence_path + input])
-                        
-                cmd.extend([self.__OUTPUT, cfg.results + self._out_name + "_{qp}.hevc".format(qp=qp)])    
-                seq_runs[qp] = cmd
-            runs[str(seqs)] = seq_runs
-   
-        print("Running test {}".format(self._test_name))
-        for (seq,qps) in runs.items():
-            print("  Sequence: {}".format(seq))
-            self._results[seq] = {}
-            i = 0
-            print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
-            for (qp,cmd) in qps.items():
-                #print(cmd)
-                p = sp.Popen(cmd,stdout=None,stderr=sp.PIPE)
-                out = p.communicate()
-                #print("_________________________out_____________________")
-                #print(out)
-                self._results[seq][qp] = out[1]
-                i = i + 1
-                print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
-            print("")
-        
-        
+        #Check if there exists results for current parameters already
+        if self._results_exist():
+            self._load_results()
+        else:
+            #Need to run tests again
+            self._run_tests()
+            self._save_results()
+            print("Results saved.")
+
+    """
+    Return results of tests
+    @param resBuildFunc: function that builds the result dict when given values (kbs,kb,time,psnr,seq,lid,scale)
+    @param l_tot: identifier used for summary layer
+    @return a dict with parsed results
+    """
+    @abc.abstractmethod
+    def getResults(self, resBuildFunc, l_tot):
+        pass
 
 
 

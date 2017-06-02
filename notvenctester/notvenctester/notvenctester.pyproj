@@ -25,12 +25,21 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="notvenctester.py" />
+    <Compile Include="shmTestInstance.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="skvzTestInstance.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TestInstance.py" />
     <Compile Include="TestSuite.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\main.py" />
     <Compile Include="tests\scale_test1.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\shm_test1.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test1.py" />

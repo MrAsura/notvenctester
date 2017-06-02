@@ -5,7 +5,7 @@ Test suite containing functions for generating test results from TestInstances
 import openpyxl as xl
 from openpyxl.utils import get_column_letter, column_index_from_string
 from openpyxl.formatting.rule import ColorScaleRule
-import re
+#import re
 import cfg
 
 __FILE_END = r".xlsm"
@@ -16,9 +16,9 @@ __PSNR = r"psnr"
 __SCALE = r"scale"
 __RES = r"results"
 
-__res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
-__lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
-__time_regex = r"\sEncoding\stime:\s(\d+.\d+)\ss."
+#__res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
+#__lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
+#__time_regex = r"\sEncoding\stime:\s(\d+.\d+)\ss."
 
 __R_HEADER = ["Sequence","Layer"]
 __R_HEADER_QP = "QP {}"
@@ -78,7 +78,7 @@ def makeLayerCombiName(combi):
 
 """
 Parse kb/s from test results 
-"""
+
 def __parseKBS(res,lres,trgt,nl):
     (frames,bits) = res.group(1,3)
     lframes = int(frames)/nl
@@ -89,10 +89,10 @@ def __parseKBS(res,lres,trgt,nl):
         else:
             trgt[lid][__KBS] = float(bits)/float(frames)
     trgt[__LID_TOT][__KBS] = float(bits)/float(frames)
-
+"""
 """
 Parse kb from test results
-"""
+
 def __parseKB(res,lres,trgt,nl):
     bits = res.group(3)
     for lid in range(nl):
@@ -102,10 +102,10 @@ def __parseKB(res,lres,trgt,nl):
         else:
             trgt[lid][__KB] = float(bits)
     trgt[__LID_TOT][__KB] = float(bits)
-
+"""
 """
 Parse Time
-"""
+
 def __parseTime(res,lres,trgt,nl):
     ttime = res.group(1)
     for lid in range(nl):
@@ -115,10 +115,10 @@ def __parseTime(res,lres,trgt,nl):
         else:
             trgt[lid][__TIME] = float(ttime)
     trgt[__LID_TOT][__TIME] = float(ttime)
-
+"""
 """
 Parse psnr from test results
-"""
+
 def __parsePSNR(res,lres,trgt,nl):
     for lid in range(nl):
         if lres[lid]:
@@ -126,10 +126,10 @@ def __parsePSNR(res,lres,trgt,nl):
         else:
             trgt[lid][__PSNR] = res.group(4,5,6)
     trgt[__LID_TOT][__PSNR] = res.group(4,5,6)
-
+"""
 """
 Parse needed values
-"""
+
 def __parseVals(res):
     trgt = {}
     res_ex = re.search(__res_regex, str(res))
@@ -145,6 +145,24 @@ def __parseVals(res):
     __parseTime(time_ex,lres_ex,trgt,num_layers)
     __parsePSNR(res_ex,lres_ex,trgt,num_layers)
     return trgt
+"""
+
+"""
+Build test result dict
+"""
+def __resBuildFunc(results,seq,qp,lid,kbs,kb,time,psnr):
+    
+    if not seq in results:
+        results[seq] = {}
+    if not qp in results[seq]:
+        results[seq][qp] = {}
+    if not lid in results[seq][qp]:
+        results[seq][qp][lid] = {}
+
+    results[seq][qp][lid][__KBS] = kbs
+    results[seq][qp][lid][__KB] = kb
+    results[seq][qp][lid][__TIME] = time
+    results[seq][qp][lid][__PSNR] = psnr
 
 
 """
@@ -154,20 +172,8 @@ Parse test results
 def __parseTestResults(tests):
     results = {}
     for test in tests:
-        main_res = {}
-        
-        # For each sequence
-        for (seq,qps) in test._results.items():
-            main_res[seq] = {}
-            # For each qp
-            for (qp,res) in qps.items():
-                qp_res = __parseVals(res)
-
-                # Set qp results
-                main_res[seq][qp] = qp_res
-        # Set base results
+        main_res = test.getResults(__resBuildFunc,l_tot=__LID_TOT)
         results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales)}
-
     return results
 
 """
