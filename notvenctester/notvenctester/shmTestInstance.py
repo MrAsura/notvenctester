@@ -40,7 +40,7 @@ class shmTestInstance(TestInstance):
 
         self._out_name = out_name
 
-        self._input_layer_scales = tuple([1 for i in range(len(configs[0]))])
+        self._input_layer_scales = tuple([1 for i in range(len(configs[0])-1)])
 
         # Check that if input_names is given, it is the same length as configs. Both inputs and input_names must not be None
         if (input_names is not None and len(input_names) != len(configs)) or (inputs is not None and len(inputs) != len(configs)) or (input_names is None and inputs is None) :
@@ -74,16 +74,23 @@ class shmTestInstance(TestInstance):
         # Build commands
         for (name,(confs,seq)) in self._input_names.items():
             runs[name] = {}
-            for qp in self._qps:
+            for lqp in self._qps:
+                if not hasattr(lqp,"__iter__"):
+                    lqp = (lqp,)
+
                 cmd = [cfg.shm_bin]
-                runs[name][qp] = cmd
+                runs[name][str(lqp)] = cmd
                 for conf in confs:
                     cmd.extend([self.__CFG,conf])
-                cmd.extend([self.__BIN, cfg.results + self._out_name + "{qp}.hevc".format(qp=qp)])
+                cmd.extend([self.__BIN, cfg.results + self._out_name + "{qp}.hevc".format(qp=lqp)])
                 if seq is not None:
-                    for lid in range(len(seq)):
+                    for (lid,qp) in it.zip_longest(range(len(seq)),lqp,fillvalue=None):
                         cmd.extend([self.__INPUT.format(lid=lid),seq[lid]])
-                        cmd.extend([self.__QP.format(lid=lid),str(qp)])
+                        if qp is not None:
+                            cmd.extend([self.__QP.format(lid=lid),str(qp)])
+                        else:
+                            cmd.extend([self.__QP.format(lid=lid),str(lqp[0])])
+
                 cmd.extend(self._layer_args)
 
         seq_hash_tests_done = {} #Hold the number of test done for each sequence

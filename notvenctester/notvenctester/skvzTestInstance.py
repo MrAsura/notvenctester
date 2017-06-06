@@ -23,12 +23,12 @@ class skvzTestInstance(TestInstance):
     @param layer_args: Specify parameters not give as separate args (iterable with an element for each layer)
     @param layer_sizes: Specify layer sizes (iterable with an element for each layer). Gets overwriten if scales is given
     @param input_layer_scales: Set layer Sizes as input sizes scaled by given values
-    @param qps: Qp values for which the test is run
+    @param qps: Qp values for which the test is run. Either a single value used for all layers or a seperate value for each layer
     @param test_name: A name for the test instance
     @param out_name: Name for the output files
     @return self object
     """
-    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
+    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
         self._layer_sizes = layer_sizes
         self._layer_args = layer_args
         self._inputs = inputs
@@ -59,6 +59,21 @@ class skvzTestInstance(TestInstance):
                     fval =  input_set_sizes[-1] if len(input_set) < len(input_layer_scales) else 1
                 self._layer_sizes.append( tuple( strscale(size,scale) for (scale,size) in it.zip_longest(input_layer_scales,insizes,fillvalue = fval) ) )
         
+        self._input_names = {}
+        # Build input_name
+        if len(inputs) != len(self._input_sizes) and input_sizes[0] is not None:
+            raise ValueError("inputs and input_sizes should be the same size")
+        if len(inputs) != len(self._layer_sizes) and layer_sizes[0] is not None:
+            raise ValueError("inputs and layer sizes must be the same size")
+        if input_names[0] is not None and len(inputs) != len(input_names):
+            raise ValueError("input and input_names need to be the same length")
+
+        for (inp,size,name) in it.zip_longest(inputs,self._layer_sizes,input_names,fillvalue=None):
+            if name is not None:
+                self._input_names[name] = (inp,size)
+            else:
+                self._input_names[str(inp)] = (inp,size)
+
         #Will contain the execution results
         self._results = {}
 
@@ -82,25 +97,31 @@ class skvzTestInstance(TestInstance):
 
     def _run_tests(self):
         runs = {}
-        for (seqs,sizes) in zip(self._inputs,self._layer_sizes):
+        for (name,(seqs,sizes)) in self._input_names.items():
             seq_runs = {}
-            for qp in self._qps:
+            for lqp in self._qps:
+                if not hasattr(lqp,"__iter__"):
+                    lqp = (lqp,)
+
                 cmd = [cfg.skvz_bin]
-                for (l,l_res,l_arg) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,fillvalue=None):
+                for (l,l_res,l_arg,qp) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,lqp,fillvalue=None):
                     if l is not None:
                         cmd.append(l)
                     if l_arg is not None:
                         cmd.extend(l_arg)
                     if l_res is not None:
                         cmd.extend([self.__LAYER_RES,l_res])
-                    cmd.extend([self.__QP,str(qp)])
+                    if qp is not None:
+                        cmd.extend([self.__QP,str(qp)])
+                    else:
+                        cmd.extend([self.__QP,str(lqp[0])])
                         
                     for input in seqs:
                         cmd.extend([self.__INPUT,cfg.sequence_path + input])
                         
-                cmd.extend([self.__OUTPUT, cfg.results + self._out_name + "_{qp}.hevc".format(qp=qp)])    
-                seq_runs[qp] = cmd
-            runs[str(seqs)] = seq_runs
+                cmd.extend([self.__OUTPUT, cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)])    
+                seq_runs[str(lqp)] = cmd
+            runs[name] = seq_runs
    
         print("Running test {}".format(self._test_name))
         for (seq,qps) in runs.items():
@@ -134,10 +155,10 @@ class skvzTestInstance(TestInstance):
         for lid in range(nl):
             if lres[lid]:
                 lbits = lres[lid].group(1)
-                vals[lid] = float(lbits)/float(lframes)
+                vals[lid] = float(lbits)#/float(lframes)
             else:
-                vals[lid] = float(bits)/float(frames)
-        vals[l_tot] = float(bits)/float(frames)
+                vals[lid] = float(bits)#/float(frames)
+        vals[l_tot] = float(bits)#/float(frames)
         return vals
 
     """

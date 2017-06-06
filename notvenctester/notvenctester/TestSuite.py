@@ -7,6 +7,7 @@ from openpyxl.utils import get_column_letter, column_index_from_string
 from openpyxl.formatting.rule import ColorScaleRule
 #import re
 import cfg
+import ast
 
 __FILE_END = r".xlsm"
 __KBS = r"kbs"
@@ -15,6 +16,7 @@ __TIME = r"time"
 __PSNR = r"psnr"
 __SCALE = r"scale"
 __RES = r"results"
+__QPS = r"qps"
 
 #__res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
 #__lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
@@ -164,6 +166,23 @@ def __resBuildFunc(results,seq,qp,lid,kbs,kb,time,psnr):
     results[seq][qp][lid][__TIME] = time
     results[seq][qp][lid][__PSNR] = psnr
 
+"""
+Sort results qps and put them to ascending order by replacing them with order numbers
+@return sorted dict and a dict containing the new to old qp key mapping
+"""
+def __sortQps(res):
+    new_res = {}
+    qp_map = {}
+    for (seq,qps) in res.items():
+        new_res[seq] = {}
+        qp_map[seq] = {}
+
+        sorted_qps = list(map(str, sorted([ast.literal_eval(qp) for qp in qps.keys()])))
+        for (i,qp) in zip(range(len(sorted_qps)),sorted_qps):
+            new_res[seq][i] = qps[qp]
+            qp_map[seq][i] = qp
+
+    return (new_res,qp_map)
 
 """
 Parse test results
@@ -173,7 +192,8 @@ def __parseTestResults(tests):
     results = {}
     for test in tests:
         main_res = test.getResults(__resBuildFunc,l_tot=__LID_TOT)
-        results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales)}
+        (main_res,qp_names) = __sortQps(main_res)
+        results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales), __QPS: qp_names}
     return results
 
 """
@@ -181,12 +201,14 @@ Combine psnr and kbs values
 """
 def __combiValues(vals):
    
-    res = {__RES:{},__SCALE:''}
+    res = {__RES:{},__SCALE:'',__QPS:{}}
     #Init structure
     for (seq,qps) in vals[0][__RES].items():
         res[__RES][seq] = {}
+        res[__QPS][seq] = {}
         for (qp,lids) in qps.items():
             res[__RES][seq][qp] = {}
+            res[__QPS][seq][qp] = ""
             for (lid,val) in lids.items():
                 res[__RES][seq][qp][lid] = {}
                 res[__RES][seq][qp][lid][__KBS] = 0
@@ -206,6 +228,7 @@ def __combiValues(vals):
                     res[__RES][seq][qp][lid][__KB] += val[__KB]
                     res[__RES][seq][qp][lid][__TIME] += val[__TIME]
                     res[__RES][seq][qp][lid][__PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[__PSNR], res[__RES][seq][qp][lid][__PSNR]))
+                res[__QPS][seq][qp] = makeCombiName([res[__QPS][seq][qp],item[__QPS][seq][qp]]) if len(res[__QPS][seq][qp]) > 0 else item[__QPS][seq][qp]
     res[__SCALE] = makeCombiName(scales)
         
     return res
@@ -215,12 +238,14 @@ Combine psnr and kbs values in a layered fashion
 """
 def __layerCombiValues(vals):
    
-    res = {__RES:{},__SCALE:''}
+    res = {__RES:{},__SCALE:'',__QPS:{}}
     #Init structure
     for (seq,qps) in vals[0][__RES].items():
         res[__RES][seq] = {}
+        res[__QPS][seq] = {}
         for qp in qps.keys():
             res[__RES][seq][qp] = {}
+            res[__QPS][seq][qp] = "()"
             for lid in range(len(vals)):
                 res[__RES][seq][qp][lid] = {}
                 res[__RES][seq][qp][lid][__KBS] = 0
@@ -246,10 +271,13 @@ def __layerCombiValues(vals):
                 lids[lid][__KB] = val[__RES][seq][qp][__LID_TOT][__KB]
                 lids[lid][__TIME] = val[__RES][seq][qp][__LID_TOT][__TIME]
                 lids[lid][__PSNR] = val[__RES][seq][qp][__LID_TOT][__PSNR]
-                lids[__LID_TOT][__KBS] += val[__RES][seq][qp][__LID_TOT][__KBS]/numv #Take the average
+                lids[__LID_TOT][__KBS] += val[__RES][seq][qp][__LID_TOT][__KBS]#/numv #Take the average
                 lids[__LID_TOT][__KB] += val[__RES][seq][qp][__LID_TOT][__KB]
                 lids[__LID_TOT][__TIME] += val[__RES][seq][qp][__LID_TOT][__TIME]
                 lids[__LID_TOT][__PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[__RES][seq][qp][__LID_TOT][__PSNR], lids[__LID_TOT][__PSNR]))
+
+                res[__QPS][seq][qp] = str( ast.literal_eval(res[__QPS][seq][qp]) + ast.literal_eval(val[__QPS][seq][qp]) )
+
     res[__SCALE] = makeLayerCombiName(scales)
         
     return res
@@ -502,7 +530,7 @@ def __makeSummary(res_pos,layers={}):
 Write results for a single test/sheet
 @return positions of relevant cells
 """
-def __writeSheet(sheet,data,scale):
+def __writeSheet(sheet,data,scale,qp_names):
     # Write header
     for col in range(len(__R_HEADER)):
         sheet.cell(row = 1, column = col+1).value = __R_HEADER[col]
@@ -529,7 +557,7 @@ def __writeSheet(sheet,data,scale):
         sheet.merge_cells(start_column=sheet.max_column-len(__R_PSNR_SUB)+1,start_row=2,end_column=sheet.max_column,end_row=2)
         sheet.cell(row=2,column=sheet.max_column-len(__R_PSNR_SUB)+1).alignment = xl.styles.Alignment(horizontal='center')
         
-        sheet.cell(row=1,column=qp_cols[qp]).value = __R_HEADER_QP.format(qp)
+        sheet.cell(row=1,column=qp_cols[qp]).value = __R_HEADER_QP.format(tuple(qp_names.values())[0][qp])
         sheet.merge_cells(start_column=qp_cols[qp],start_row=1,end_column=sheet.max_column,end_row=1)
         sheet.cell(row=1,column=qp_cols[qp]).alignment = xl.styles.Alignment(horizontal='center')
 
@@ -564,7 +592,7 @@ def __writeSheet(sheet,data,scale):
 
     # Set actual data
     for (seq,qps) in data.items():
-        for (qp,item) in sorted(tuple(qps.items())):
+        for (qp,item) in sorted(qps.items()):
             for (lid,val) in item.items():
                 r = seq_rows[seq] + lid + 1
                 if lid == __LID_TOT:
@@ -644,7 +672,7 @@ def __writeResults(wb,results,layers={}):
     # Write test results
     for (test,res) in sorted(results.items()):
         n_sheet = wb.create_sheet(title=test,index=0)
-        res_pos[test] = __writeSheet(n_sheet,res[__RES],res[__SCALE])
+        res_pos[test] = __writeSheet(n_sheet,res[__RES],res[__SCALE],res[__QPS])
     res_pos = __makeSummary(res_pos,layers)
     #print(res_pos)
     #write summary sheet
