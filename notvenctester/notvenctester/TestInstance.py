@@ -21,7 +21,7 @@ class TestInstance(abc.ABC):
     @return self object
     """
     @abc.abstractmethod
-    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
+    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\\out"):
         self._results = {}
         pass
 

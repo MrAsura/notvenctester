@@ -4,6 +4,7 @@ import itertools as it
 import re
 import cfg
 import hashlib
+import os
 
 class skvzTestInstance(TestInstance):
     """Implements the kvazaar test instance class"""
@@ -15,6 +16,9 @@ class skvzTestInstance(TestInstance):
     __INPUT_RES = "--input-res"
     __OUTPUT = "--output"
     __DEBUG = "--debug"
+
+    __RES = r"output"
+    __FS = r"file size"
 
     """
     Create a test instance object
@@ -28,7 +32,7 @@ class skvzTestInstance(TestInstance):
     @param out_name: Name for the output files
     @return self object
     """
-    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name="out"):
+    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\out"):
         self._layer_sizes = layer_sizes
         self._layer_args = layer_args
         self._inputs = inputs
@@ -118,9 +122,9 @@ class skvzTestInstance(TestInstance):
                         
                     for input in seqs:
                         cmd.extend([self.__INPUT,cfg.sequence_path + input])
-                        
-                cmd.extend([self.__OUTPUT, cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)])    
-                seq_runs[str(lqp)] = cmd
+                outfile = cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)
+                cmd.extend([self.__OUTPUT, outfile])    
+                seq_runs[str(lqp)] = (cmd,outfile)
             runs[name] = seq_runs
    
         print("Running test {}".format(self._test_name))
@@ -129,13 +133,14 @@ class skvzTestInstance(TestInstance):
             self._results[seq] = {}
             i = 0
             print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
-            for (qp,cmd) in qps.items():
+            for (qp,(cmd,outfile)) in qps.items():
                 #print(cmd)
                 p = sp.Popen(cmd,stdout=None,stderr=sp.PIPE)
                 out = p.communicate()
                 #print("_________________________out_____________________")
                 #print(out)
-                self._results[seq][qp] = out[1].decode()
+                stats = os.stat(outfile)
+                self._results[seq][qp] = {self.__RES: out[1].decode(), self.__FS: stats.st_size}
                 i = i + 1
                 print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
             print("")
@@ -178,6 +183,39 @@ class skvzTestInstance(TestInstance):
         return vals
 
     """
+    Parse kb from test results
+    """
+    @staticmethod
+    def __parseKB2(res,lres,nl,l_tot,fs):
+        vals = {}
+        bits = res.group(3)
+        for lid in range(nl):
+            if lres[lid]:
+                lbits = lres[lid].group(1)
+                vals[lid] = float(fs) * ( float(lbits) / float(bits) )
+            else:
+                vals[lid] = float(fs)
+        vals[l_tot] = float(fs)
+        return vals
+
+    """
+    Parse kb from test results
+    """
+    @staticmethod
+    def __parseKBS2(res,lres,nl,l_tot,fs):
+        vals = {}
+        bits = res.group(3)
+        frames = int(res.group(1))
+        for lid in range(nl):
+            if lres[lid]:
+                lbits = lres[lid].group(1)
+                vals[lid] = float(fs) * ( float(lbits) / float(bits) ) / frames
+            else:
+                vals[lid] = float(fs) / frames
+        vals[l_tot] = float(fs) / frames
+        return vals
+
+    """
     Parse Time
     """
     @staticmethod
@@ -211,8 +249,10 @@ class skvzTestInstance(TestInstance):
     Parse needed values
     """
     @classmethod
-    def __parseVals(cls,res,l_tot):
+    def __parseVals(cls,results,l_tot):
         trgt = {}
+        res = results[cls.__RES]
+        fs = results[cls.__FS]
         res_ex = re.search(cls.__res_regex, str(res))
         time_ex = re.search(cls.__time_regex, str(res))
         lres_ex = {}
@@ -221,8 +261,10 @@ class skvzTestInstance(TestInstance):
         for lid in layers:
             lres_ex[lid] = re.search(cls.__lres_regex_format.format(lid=lid), str(res))
         layers = layers + (l_tot,)
-        kbs = cls.__parseKBS(res_ex,lres_ex,num_layers,l_tot)
-        kb = cls.__parseKB(res_ex,lres_ex,num_layers,l_tot)
+        #kbs = cls.__parseKBS(res_ex,lres_ex,num_layers,l_tot)
+        #kb = cls.__parseKB(res_ex,lres_ex,num_layers,l_tot)
+        kbs = cls.__parseKBS2(res_ex,lres_ex,num_layers,l_tot,fs)
+        kb = cls.__parseKB2(res_ex,lres_ex,num_layers,l_tot,fs)
         time = cls.__parseTime(time_ex,lres_ex,num_layers,l_tot)
         psnr = cls.__parsePSNR(res_ex,lres_ex,num_layers,l_tot)
         return (kbs,kb,time,psnr,layers)

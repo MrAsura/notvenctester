@@ -19,21 +19,21 @@ def main():
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "BL",
                         input_names = in_names,
-                        qps = bl_qps,
+                        #qps = bl_qps,
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','3','--no-wpp'),),
                         input_layer_scales = (0.5,)
                         ))
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "EL",
                         input_names = in_names,
-                        qps = el_qps,
+                        #qps = el_qps,
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','3','--no-wpp'),),
                         input_layer_scales = (1,)
                         ))
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Scal",
                         input_names = in_names,
-                        qps = tuple(zip(bl_qps,el_qps)),
+                        #qps = tuple(zip(bl_qps,el_qps)),
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0'),
                                       ('--preset','ultrafast','-n','5','-r','1','--gop','0','--threads','3','--no-wpp')),
                         input_layer_scales = (0.5,1)

@@ -5,13 +5,15 @@ import itertools as it
 import re
 import cfg
 import hashlib
+import os
 
-def _worker(seq,qp,cmd):
+def _worker(seq,qp,cmd,outfile):
     p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
     res = p.communicate()
+    stats = os.stat(outfile)
     #if res[1] is not None:
         #print(seq,qp,res[1].decode())
-    return (seq,qp,res[0].decode())
+    return (seq,qp,res[0].decode(),stats.st_size)
 
 class shmTestInstance(TestInstance):
     """Test instance class for shm"""
@@ -27,8 +29,10 @@ class shmTestInstance(TestInstance):
     __tot_stat_regex = r"Bytes written to file:\s+(\d+)\s+\((\d+\.\d+)\s+kbps\)\s+Total Time:\s+(\d+.\d+)\s+sec\."
     __num_layers_regex = r"Total number of layers\s+:\s+(\d+)"
 
+    __RES = r"output"
+    __FS = r"file size"
     
-    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = 'out'):
+    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'out\out'):
 
         self._configs = configs
         self._inputs = inputs
@@ -79,10 +83,10 @@ class shmTestInstance(TestInstance):
                     lqp = (lqp,)
 
                 cmd = [cfg.shm_bin]
-                runs[name][str(lqp)] = cmd
                 for conf in confs:
                     cmd.extend([self.__CFG,conf])
-                cmd.extend([self.__BIN, cfg.results + self._out_name + "{qp}.hevc".format(qp=lqp)])
+                outfile = cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)
+                cmd.extend([self.__BIN, outfile])
                 if seq is not None:
                     for (lid,qp) in it.zip_longest(range(len(seq)),lqp,fillvalue=None):
                         cmd.extend([self.__INPUT.format(lid=lid),seq[lid]])
@@ -92,6 +96,7 @@ class shmTestInstance(TestInstance):
                             cmd.extend([self.__QP.format(lid=lid),str(lqp[0])])
 
                 cmd.extend(self._layer_args)
+                runs[name][str(lqp)] = (cmd, outfile)
 
         seq_hash_tests_done = {} #Hold the number of test done for each sequence
         print_hash_format = "\t"
@@ -100,12 +105,12 @@ class shmTestInstance(TestInstance):
         #Callback function for workers
         def cb( res ):
             nonlocal seq_hash_tests_done, self
-            (seq,qp,val) = res
+            (seq,qp,val,fs) = res
             # Update printout
             seq_hash_tests_done[hash_format(seq)] += 1
             print(print_hash_format.format(**seq_hash_tests_done),end='\r')
             # Save reuslts
-            self._results[seq][qp] = val
+            self._results[seq][qp] = {self.__RES: val, self.__FS: fs}
 
         def cb_err( *args, **kwargs ):
             print("Error in worker") 
@@ -120,8 +125,8 @@ class shmTestInstance(TestInstance):
             print(line_sep+seq)
             line_sep += "\t|"
             self._results[seq] = {}
-            for (qp,cmd) in qps.items():
-                pool.apply_async(_worker,(seq,qp,cmd),callback=cb,error_callback=cb_err)
+            for (qp,(cmd,outfile)) in qps.items():
+                pool.apply_async(_worker,(seq,qp,cmd,outfile),callback=cb,error_callback=cb_err)
         print(print_hash_format.format(**seq_hash_tests_done),end='\r')
         # Close pool and wait untill everythin is finnished
         pool.close()
@@ -156,6 +161,32 @@ class shmTestInstance(TestInstance):
         for lid in range(nl):
             vals[lid] = float(bits) * ( lkbs[lid] / float(brate) )
         vals[l_tot] = float(bits)
+        return vals
+
+
+    """
+    Parse kb from test results
+    """
+    @staticmethod
+    def __parseKB2(res,lres,nl,l_tot,fs):
+        vals = {}
+        brate = res.group(2)
+        for lid in range(nl):
+            vals[lid] = float(fs) * ( float(lres[lid].group(2)) / float(brate) )
+        vals[l_tot] = float(fs)
+        return vals
+
+    """
+    Parse kb from test results
+    """
+    @staticmethod
+    def __parseKBS2(res,lres,nl,l_tot,fs):
+        vals = {}
+        brate = res.group(2)
+        for lid in range(nl):
+            frames = lres[lid].group(1)
+            vals[lid] = float(fs) * ( float(lres[lid].group(2)) / float(brate) ) / frames
+        vals[l_tot] = float(fs) / frames
         return vals
 
     """
@@ -193,8 +224,10 @@ class shmTestInstance(TestInstance):
     Parse needed values
     """
     @classmethod
-    def __parseVals(cls,res,l_tot):
+    def __parseVals(cls,results,l_tot):
         trgt = {}
+        res = results[cls.__RES]
+        fs = results[cls.__FS]
         sum_ex = re.search(cls.__sum_regex, str(res))
         i_ex = re.search(cls.__i_slice_regex, str(res))
         tot_ex = re.search(cls.__tot_stat_regex, str(res))
@@ -204,8 +237,10 @@ class shmTestInstance(TestInstance):
         for lid in layers:
             lres_ex[lid] = re.search(cls.__layer_regex_format.format(lid=lid), str(res))
         layers = layers + (l_tot,)
-        kbs = cls.__parseKBS(tot_ex,lres_ex,num_layers,l_tot)
-        kb = cls.__parseKB(tot_ex,kbs,num_layers,l_tot)
+        #kbs = cls.__parseKBS(tot_ex,lres_ex,num_layers,l_tot)
+        #kb = cls.__parseKB(tot_ex,kbs,num_layers,l_tot)
+        kbs = cls.__parseKB2(tot_ex,lres_ex,num_layers,l_tot,fs)
+        kb = cls.__parseKB2(tot_ex,lres_ex,num_layers,l_tot,fs)
         time = cls.__parseTime(tot_ex,lres_ex,num_layers,l_tot)
         psnr = cls.__parsePSNR(lres_ex,num_layers,l_tot)
         return (kbs,kb,time,psnr,layers)

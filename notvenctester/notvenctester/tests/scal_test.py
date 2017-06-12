@@ -31,7 +31,7 @@ def main():
     tests.append( shmTestInstance(inputs = [(seq0,) for (seq0,seq1) in seqs],
                                   configs = confs_bl,
                                   input_names = in_names,
-                                  qps = bl_qps,
+                                  #qps = bl_qps,
                                   layer_args = ("-f",'5'),
                                   #input_layer_scales = (0.5,),
                                   test_name = "BL_SHM"
@@ -39,7 +39,7 @@ def main():
     tests.append( shmTestInstance(inputs = [(seq1,) for (seq0,seq1) in seqs],
                                   configs = confs_el,
                                   input_names = in_names,
-                                  qps = el_qps,
+                                  #qps = el_qps,
                                   layer_args = ("-f",'5'),
                                   #input_layer_scales = (1,),
                                   test_name = "EL_SHM"
@@ -62,21 +62,21 @@ def main():
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "BL_SKVZ",
                         input_names = in_names,
-                        qps = bl_qps,
+                        #qps = bl_qps,
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--no-wpp','--threads','3'),),
                         input_layer_scales = (0.5,)
                         ))
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "EL_SKVZ",
                         input_names = in_names,
-                        qps = el_qps,
+                        #qps = el_qps,
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','3','--no-wpp'),),
                         input_layer_scales = (1,)
                         ))
     tests.append( skvzTestInstance(inputs = seqs,
                         test_name = "Scal_SKVZ",
                         input_names = in_names,
-                        qps = tuple(zip(bl_qps,el_qps)),
+                        #qps = tuple(zip(bl_qps,el_qps)),
                         layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0'),
                                       ('--preset','ultrafast','-n','5','-r','1','--gop','0','--threads','3','--no-wpp')),
                         input_layer_scales = (0.5,1)
