@@ -20,8 +20,8 @@ def main():
 
     in_names = ["Kimono","Cactuar"]
 
-    bl_qps = (22, 27, 32, 37)
-    el_qps = tuple(map(lambda x: x-5,bl_qps))
+    bl_qps = (7,12,17,22) #(22, 27, 32, 37)
+    el_qps = bl_qps#tuple(map(lambda x: x-5,bl_qps))
 
     tests.append( shmTestInstance(inputs = [(seq0,) for (seq0,seq1) in seqs],
                                   configs = confs_bl,
@@ -42,7 +42,7 @@ def main():
     tests.append( shmTestInstance(inputs = seqs,
                                   configs = confs,
                                   input_names = in_names,
-                                  qps = tuple(zip(bl_qps,el_qps)),
+                                  qps = bl_qps,#tuple(zip(bl_qps,el_qps)),
                                   layer_args = ("-f",'5'),
                                   #layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),
                                   #              ('--preset','ultrafast','-n','5','-r','1','--gop','0','--threads','0')),
@@ -50,7 +50,7 @@ def main():
                                   test_name = "Scal"
                                 ))
 
-    runTests(tests,"shm_test1",
+    runTests(tests,"shm_test_low_qp",
              layers={makeLayerCombiName(["BL","EL"]):(-1,),
                      "Scal":(-1,)},
              #combi=[("EL","BL")])#,

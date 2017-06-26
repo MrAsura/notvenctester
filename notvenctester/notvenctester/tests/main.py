@@ -3,13 +3,14 @@ Set test to run here
 """
 
 #import test1
-import scale_test1,shm_test1
+import scale_test1,shm_test1,preset_scal_test
 import scal_test
 
 #test_list = [scal_test.main]
 #test_list = [test1.main]
 test_list = [scale_test1.main,
-#             scal_test.main,
+             scal_test.main,
+             preset_scal_test.main,
              shm_test1.main]
 
 def runTests():

@@ -32,7 +32,7 @@ class skvzTestInstance(TestInstance):
     @param out_name: Name for the output files
     @return self object
     """
-    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\out"):
+    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r""):
         self._layer_sizes = layer_sizes
         self._layer_args = layer_args
         self._inputs = inputs
@@ -45,8 +45,6 @@ class skvzTestInstance(TestInstance):
         self._test_name = test_name
         if not test_name:
             self._test_name = inputs[0]
-
-        self._out_name = out_name
 
         if input_layer_scales:
             round2 = lambda x,base=2: int(base*round(x/base))
@@ -80,6 +78,9 @@ class skvzTestInstance(TestInstance):
 
         #Will contain the execution results
         self._results = {}
+
+        # If no outname given use hash as outname so parallel workers don't use the same file
+        self._out_name = out_name if out_name else r'out\\' + self._get_fname_hash()
 
         #return self
 
@@ -122,7 +123,7 @@ class skvzTestInstance(TestInstance):
                         
                     for input in seqs:
                         cmd.extend([self.__INPUT,cfg.sequence_path + input])
-                outfile = cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)
+                outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)
                 cmd.extend([self.__OUTPUT, outfile])    
                 seq_runs[str(lqp)] = (cmd,outfile)
             runs[name] = seq_runs

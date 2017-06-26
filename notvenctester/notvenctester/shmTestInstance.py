@@ -32,7 +32,7 @@ class shmTestInstance(TestInstance):
     __RES = r"output"
     __FS = r"file size"
     
-    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'out\out'):
+    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r''):
 
         self._configs = configs
         self._inputs = inputs
@@ -41,8 +41,6 @@ class shmTestInstance(TestInstance):
 
         self._results = {}
         self._test_name = test_name
-
-        self._out_name = out_name
 
         self._input_layer_scales = tuple([1 for i in range(len(configs[0])-1)])
 
@@ -56,6 +54,9 @@ class shmTestInstance(TestInstance):
                 self._input_names[name] = (conf,seq)
             else:
                 self._input_names[str(seq)] = (conf,seq)
+
+        # If no outname given use hash as outname so parallel workers don't use the same file
+        self._out_name = out_name if out_name else r'out\\' + self._get_fname_hash()
 
         #return super().__init__(test_name, inputs, input_sizes, layer_args, layer_sizes, input_layer_scales, qps, out_name)
 
@@ -85,7 +86,7 @@ class shmTestInstance(TestInstance):
                 cmd = [cfg.shm_bin]
                 for conf in confs:
                     cmd.extend([self.__CFG,conf])
-                outfile = cfg.results + self._out_name + "_{qp}.hevc".format(qp=lqp)
+                outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)
                 cmd.extend([self.__BIN, outfile])
                 if seq is not None:
                     for (lid,qp) in it.zip_longest(range(len(seq)),lqp,fillvalue=None):
@@ -184,8 +185,8 @@ class shmTestInstance(TestInstance):
         vals = {}
         brate = res.group(2)
         for lid in range(nl):
-            frames = lres[lid].group(1)
-            vals[lid] = float(fs) * ( float(lres[lid].group(2)) / float(brate) ) / frames
+            frames = float(lres[lid].group(1))
+            vals[lid] = float(fs) * ( float(lres[lid].group(2)) / float(brate) ) / float(frames)
         vals[l_tot] = float(fs) / frames
         return vals
 
@@ -239,7 +240,7 @@ class shmTestInstance(TestInstance):
         layers = layers + (l_tot,)
         #kbs = cls.__parseKBS(tot_ex,lres_ex,num_layers,l_tot)
         #kb = cls.__parseKB(tot_ex,kbs,num_layers,l_tot)
-        kbs = cls.__parseKB2(tot_ex,lres_ex,num_layers,l_tot,fs)
+        kbs = cls.__parseKBS2(tot_ex,lres_ex,num_layers,l_tot,fs)
         kb = cls.__parseKB2(tot_ex,lres_ex,num_layers,l_tot,fs)
         time = cls.__parseTime(tot_ex,lres_ex,num_layers,l_tot)
         psnr = cls.__parsePSNR(lres_ex,num_layers,l_tot)
