@@ -87,6 +87,13 @@ class TestInstance(abc.ABC):
             print("Results saved.")
 
     """
+    Return a list with the names of the inputs for this test
+    """
+    @abc.abstractmethod
+    def getInputNames(self):
+        pass
+
+    """
     Return results of tests
     @param resBuildFunc: function that builds the result dict when given values (kbs,kb,time,psnr,seq,lid,scale)
     @param l_tot: identifier used for summary layer

@@ -76,6 +76,8 @@ class skvzTestInstance(TestInstance):
             else:
                 self._input_names[str(inp)] = (inp,size)
 
+        self._input_names_order = input_names
+
         #Will contain the execution results
         self._results = {}
 
@@ -91,8 +93,10 @@ class skvzTestInstance(TestInstance):
 
     def _get_fname_hash(self):
         hasher = hashlib.sha256()
-        hasher.update(str(self._layer_sizes).encode())
-        hasher.update(str(self._inputs).encode())
+        #hasher.update(str(self._layer_sizes).encode())
+        #hasher.update(str(self._inputs).encode())
+        hasher.update(str(self._input_names).encode())
+        #hasher.update(str(self._input_names_order).encode())
         hasher.update(str(self._qps).encode())
         hasher.update(str(self._layer_args).encode())
         hasher.update(str(self._input_sizes).encode())
@@ -270,6 +274,9 @@ class skvzTestInstance(TestInstance):
         psnr = cls.__parsePSNR(res_ex,lres_ex,num_layers,l_tot)
         return (kbs,kb,time,psnr,layers)
 
+
+    def getInputNames(self):
+        return self._input_names_order if self._input_names_order else list(self._input_names.keys())
 
     """
     Return a dict containing the test results

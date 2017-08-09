@@ -17,6 +17,7 @@ __PSNR = r"psnr"
 __SCALE = r"scale"
 __RES = r"results"
 __QPS = r"qps"
+__INAMES = r"inames"
 
 #__res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
 #__lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
@@ -42,7 +43,9 @@ __S_BDRATE_FORMAT = "=bdrate({},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{})"
 __S_BIT_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
 __S_TIME_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
 __S_PSNR_FORMAT = "=AVERAGE({},{},{},{})-AVERAGE({},{},{},{})"
-__S_HEADER = "Result summary (bdrate comparisons)"
+__S_HEADER = "Result summary matrix (bdrate, bit, PSNR, Time comparisons)"
+
+__S2_HEADER = "Result summary list"
 
 __SR_FORMAT = r"'{sheet}'!{cell}"
 
@@ -193,7 +196,7 @@ def __parseTestResults(tests):
     for test in tests:
         main_res = test.getResults(__resBuildFunc,l_tot=__LID_TOT)
         (main_res,qp_names) = __sortQps(main_res)
-        results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales), __QPS: qp_names}
+        results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales), __QPS: qp_names, __INAMES: [__SEQ_AVERAGE,] + test.getInputNames()}
     return results
 
 """
@@ -201,7 +204,7 @@ Combine psnr and kbs values
 """
 def __combiValues(vals):
    
-    res = {__RES:{},__SCALE:'',__QPS:{}}
+    res = {__RES:{},__SCALE:'',__QPS:{}, __INAMES:vals[0][__INAMES]}
     #Init structure
     for (seq,qps) in vals[0][__RES].items():
         res[__RES][seq] = {}
@@ -238,7 +241,7 @@ Combine psnr and kbs values in a layered fashion
 """
 def __layerCombiValues(vals):
    
-    res = {__RES:{},__SCALE:'',__QPS:{}}
+    res = {__RES:{},__SCALE:'',__QPS:{}, __INAMES:vals[0][__INAMES]}
     #Init structure
     for (seq,qps) in vals[0][__RES].items():
         res[__RES][seq] = {}
@@ -440,9 +443,10 @@ def __writePSNRSummaryMatrix(sheet, data, row, col):
 """
 Write summary sheet
 """
-def __writeSummary(sheet, ref_pos):
+def __writeSummary(sheet, ref_pos, order = None):
 
     seq_ref = {}
+    order = order if order else list(seq_ref.keys())
 
     # Init structure for each sequence
     for (test,item) in ref_pos.items():
@@ -455,7 +459,9 @@ def __writeSummary(sheet, ref_pos):
     #print(seq_ref)
     # For each sequence generate the comparison matrix
     sheet.cell(row = 1, column = 1).value = __S_HEADER 
-    for (seq,ref) in sorted(seq_ref.items()):
+    #for (seq,ref) in sorted(seq_ref.items()):
+    for seq in order:
+        ref = seq_ref[seq]
         tests = sorted(ref.keys())
         
         # write bdrate matrix
@@ -497,6 +503,89 @@ def __writeSummary(sheet, ref_pos):
     for col in range(sheet.max_column):
         sheet.column_dimensions[get_column_letter(col+1)].width = 15
 
+"""
+Write summary 2 list header
+"""
+def __writeSummary2ListHeader(sheet, tests, seqs, base_test, row, col):
+    # Write the test names in the first rows
+    base_test_col = -1;
+
+    tmp_col = col + 1
+    for test in tests:
+        sheet.cell(row = row, column = tmp_col).value = test
+        if test == base_test:
+            base_test_col = tmp_col
+        tmp_col += 1
+
+    #Write vertical 
+    tmp_row = row + 1
+    for seq in seqs:
+        sheet.cell(row = tmp_row, column = col).value = seq
+        tmp_row += 1
+
+    return base_test_col
+
+"""
+Write summary 2 list
+"""
+def __writeSummary2List(sheet, data, base_test_col, row, col):
+    seq_col = col - 1
+    test_row = row - 1
+    final_r = row+len(data.keys())
+    final_c = col+len(tuple(data.values())[0].keys())
+    for r in range(row,final_r):
+        for c in range(col,final_c):
+            seq = sheet.cell(row = r, column = seq_col).value
+            test = sheet.cell(row = test_row, column = c).value
+            base_test = sheet.cell(row = test_row, column = base_test_col).value
+            #if t1 == t2:
+            #    sheet.cell(row = r, column = c).value = "-"
+            #else:
+            base =[__SR_FORMAT.format(sheet=parseSheetLayer(base_test)[0],cell=cl) for cl in data[seq][base_test][__KBS] + data[seq][base_test][__PSNR]]
+            comp =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data[seq][test][__KBS] + data[seq][test][__PSNR]]
+            sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(base + comp))
+            sheet.cell(row = r, column = c).style = 'Percent'
+            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+    # Set conditional coloring
+    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+    sheet.conditional_formatting.add(form_range,
+                                     ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
+                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
+                                                    end_type='percentile', end_value=10, end_color='F8696B' ))
+
+
+"""
+Write summary sheet 2
+Write a list type summary with one reference point
+"""
+def __writeSummary2(sheet, ref_pos, base_test, order=None):
+
+    seq_ref = {}
+
+    # Init structure for each sequence
+    for (test,item) in ref_pos.items():
+        for seq in item.keys():
+            seq_ref[seq] = {}
+    # Populate
+    for (test,item) in ref_pos.items():
+        for (seq,val) in item.items():
+            seq_ref[seq][test] = val
+    #print(seq_ref)
+
+    order = order if order else sorted(seq_ref.keys())
+
+    # List Each sequence (rows) and tests (columns)
+    sheet.cell(row = 1, column = 1).value = __S2_HEADER
+    row = sheet.max_row + 2
+    col = 1
+
+    base_test_col = __writeSummary2ListHeader(sheet, sorted(ref_pos.keys()), order, base_test, row, col)
+    __writeSummary2List(sheet, seq_ref, base_test_col, row + 1, col + 1)
+   
+
+    # Make columns wider
+    for col in range(sheet.max_column):
+        sheet.column_dimensions[get_column_letter(col+1)].width = 15
 
 """
 Transform res_pos into summary test structure
@@ -530,7 +619,7 @@ def __makeSummary(res_pos,layers={}):
 Write results for a single test/sheet
 @return positions of relevant cells
 """
-def __writeSheet(sheet,data,scale,qp_names):
+def __writeSheet(sheet,data,scale,qp_names,order=None):
     # Write header
     for col in range(len(__R_HEADER)):
         sheet.cell(row = 1, column = col+1).value = __R_HEADER[col]
@@ -542,6 +631,8 @@ def __writeSheet(sheet,data,scale,qp_names):
     qp_cols = {}
     seq_rows = {}
     res_ref = {}
+
+    order = order if order else list(data.keys())
 
     # Write stat row
     for (qp,item) in sorted(tuple(data.values())[0].items()):
@@ -562,8 +653,10 @@ def __writeSheet(sheet,data,scale,qp_names):
         sheet.cell(row=1,column=qp_cols[qp]).alignment = xl.styles.Alignment(horizontal='center')
 
     # Write sequence column
-    for (seq,res) in data.items():
-        sheet.cell(row=sheet.max_row+1,column=1).value = __SEQ_FORMAT.format(seq,scale)
+    #for (seq,res) in data.items():
+    layer_r = range(len(tuple(tuple(data.values())[0].values())[0].keys())-1)
+    for seq in order:
+        sheet.cell(row=sheet.max_row+1,column=1).value = __SEQ_FORMAT.format(seq,scale) if seq is not __SEQ_AVERAGE else __SEQ_AVERAGE 
         seq_rows[seq] = sheet.max_row
 
         res_ref[seq] = {}
@@ -571,91 +664,95 @@ def __writeSheet(sheet,data,scale,qp_names):
         #Set Layers
         sheet.cell(row=seq_rows[seq],column=2).value = __LID_TOT
         res_ref[seq][__LID_TOT] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
-        for lid in range(len(tuple(res.values())[0].keys())-1):
+        for lid in layer_r:
             sheet.cell(row=seq_rows[seq]+lid+1,column=2).value = lid
             res_ref[seq][lid] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
         
 
     # Write Average "sequence"
-    sheet.cell(row=sheet.max_row+1,column=1).value = __SEQ_AVERAGE
-    seq_rows[__SEQ_AVERAGE] = sheet.max_row
+    #sheet.cell(row=sheet.max_row+1,column=1).value = __SEQ_AVERAGE
+    #seq_rows[__SEQ_AVERAGE] = sheet.max_row
 
-    res_ref[__SEQ_AVERAGE] = {}
+    #res_ref[__SEQ_AVERAGE] = {}
             
-    #Set Layers
-    sheet.cell(row=seq_rows[__SEQ_AVERAGE],column=2).value = __LID_TOT
-    res_ref[__SEQ_AVERAGE][__LID_TOT] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
-    for lid in range(len(tuple(res.values())[0].keys())-1):
-        sheet.cell(row=seq_rows[__SEQ_AVERAGE]+lid+1,column=2).value = lid
-        res_ref[__SEQ_AVERAGE][lid] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
+    ##Set Layers
+    #sheet.cell(row=seq_rows[__SEQ_AVERAGE],column=2).value = __LID_TOT
+    #res_ref[__SEQ_AVERAGE][__LID_TOT] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
+    #for lid in range(len(tuple(res.values())[0].keys())-1):
+    #    sheet.cell(row=seq_rows[__SEQ_AVERAGE]+lid+1,column=2).value = lid
+    #    res_ref[__SEQ_AVERAGE][lid] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
     
 
     # Set actual data
-    for (seq,qps) in data.items():
-        for (qp,item) in sorted(qps.items()):
-            for (lid,val) in item.items():
-                r = seq_rows[seq] + lid + 1
-                if lid == __LID_TOT:
-                    r = seq_rows[seq]
-                c_kb = qp_cols[qp]
-                c_kbs = c_kb + 1
-                c_time = c_kbs + 1
-                c_psnr = c_time + len(__R_PSNR_SUB)
+    #for (seq,qps) in data.items():
+    for seq in order:
+        if seq in data:
+            qps = data[seq]
+            for (qp,item) in sorted(qps.items()):
+                for (lid,val) in item.items():
+                    r = seq_rows[seq] + lid + 1
+                    if lid == __LID_TOT:
+                        r = seq_rows[seq]
+                    c_kb = qp_cols[qp]
+                    c_kbs = c_kb + 1
+                    c_time = c_kbs + 1
+                    c_psnr = c_time + len(__R_PSNR_SUB)
 
-                sheet.cell(row=r,column=c_kb).value = val[__KB]
-                sheet.cell(row=r,column=c_kbs).value = val[__KBS]
-                sheet.cell(row=r,column=c_time).value = val[__TIME]
+                    sheet.cell(row=r,column=c_kb).value = val[__KB]
+                    sheet.cell(row=r,column=c_kbs).value = val[__KBS]
+                    sheet.cell(row=r,column=c_time).value = val[__TIME]
 
-                for i in range(len(__R_PSNR_SUB)-1):
-                    sheet.cell(row=r,column=c_psnr-i-1).value = float(val[__PSNR][-i-1])
-                sheet.cell(row=r,column=c_psnr).value = __PSNR_AVG.format(y = get_column_letter(c_psnr-3) + str(r),
-                                                                          u = get_column_letter(c_psnr-2) + str(r),
-                                                                          v = get_column_letter(c_psnr-1) + str(r))
+                    for i in range(len(__R_PSNR_SUB)-1):
+                        sheet.cell(row=r,column=c_psnr-i-1).value = float(val[__PSNR][-i-1])
+                    sheet.cell(row=r,column=c_psnr).value = __PSNR_AVG.format(y = get_column_letter(c_psnr-3) + str(r),
+                                                                              u = get_column_letter(c_psnr-2) + str(r),
+                                                                              v = get_column_letter(c_psnr-1) + str(r))
 
-                res_ref[seq][lid][__KB].append(get_column_letter(c_kb) + str(r))
-                res_ref[seq][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
-                res_ref[seq][lid][__TIME].append(get_column_letter(c_time) + str(r))
-                res_ref[seq][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
-    
-    # Set Average data
-    for c_kb in sorted(qp_cols.values()):
-        for lid in res_ref[__SEQ_AVERAGE]:
-            r = seq_rows[__SEQ_AVERAGE] + lid + 1
-            if lid == __LID_TOT:
-                r = seq_rows[__SEQ_AVERAGE]
-            c_kbs = c_kb + 1
-            c_time = c_kbs + 1
-            c_psnr = c_time + len(__R_PSNR_SUB)
+                    res_ref[seq][lid][__KB].append(get_column_letter(c_kb) + str(r))
+                    res_ref[seq][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
+                    res_ref[seq][lid][__TIME].append(get_column_letter(c_time) + str(r))
+                    res_ref[seq][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
+        else:
+            # Set Average data
+            for c_kb in sorted(qp_cols.values()):
+                for lid in res_ref[__SEQ_AVERAGE]:
+                    r = seq_rows[__SEQ_AVERAGE] + lid + 1
+                    if lid == __LID_TOT:
+                        r = seq_rows[__SEQ_AVERAGE]
+                    c_kbs = c_kb + 1
+                    c_time = c_kbs + 1
+                    c_psnr = c_time + len(__R_PSNR_SUB)
 
-            kb_rows = []
-            kbs_rows = []
-            time_rows = []
-            for (seq,row) in seq_rows.items():
-                if seq == __SEQ_AVERAGE:
-                    continue
-                kb_rows.append(get_column_letter(c_kb)+str(row+lid+1))
-                kbs_rows.append(get_column_letter(c_kbs)+str(row+lid+1))
-                time_rows.append(get_column_letter(c_time)+str(row+lid+1))
-            sheet.cell(row=r,column=c_kb).value = __C_AVG.format(','.join(kb_rows))
-            sheet.cell(row=r,column=c_kbs).value = __C_AVG.format(','.join(kbs_rows))
-            sheet.cell(row=r,column=c_time).value = __C_AVG.format(','.join(time_rows))
+                    kb_rows = []
+                    kbs_rows = []
+                    time_rows = []
+                    for (seq,row) in seq_rows.items():
+                        if seq == __SEQ_AVERAGE:
+                            continue
+                        kb_rows.append(get_column_letter(c_kb)+str(row+lid+1))
+                        kbs_rows.append(get_column_letter(c_kbs)+str(row+lid+1))
+                        time_rows.append(get_column_letter(c_time)+str(row+lid+1))
+                    sheet.cell(row=r,column=c_kb).value = __C_AVG.format(','.join(kb_rows))
+                    sheet.cell(row=r,column=c_kbs).value = __C_AVG.format(','.join(kbs_rows))
+                    sheet.cell(row=r,column=c_time).value = __C_AVG.format(','.join(time_rows))
 
-            for i in range(len(__R_PSNR_SUB)-1):
-                psnr_rows = []
-                for (seq,row) in seq_rows.items():
-                    if seq == __SEQ_AVERAGE:
-                        continue
-                    psnr_rows.append(get_column_letter(c_psnr-i-1)+str(row+lid+1))
-                sheet.cell(row=r,column=c_psnr-i-1).value = __C_AVG.format(','.join(psnr_rows))
+                    for i in range(len(__R_PSNR_SUB)-1):
+                        psnr_rows = []
+                        for (seq,row) in seq_rows.items():
+                            if seq == __SEQ_AVERAGE:
+                                continue
+                            psnr_rows.append(get_column_letter(c_psnr-i-1)+str(row+lid+1))
+                        sheet.cell(row=r,column=c_psnr-i-1).value = __C_AVG.format(','.join(psnr_rows))
             
-            sheet.cell(row=r,column=c_psnr).value = __PSNR_AVG.format(y = get_column_letter(c_psnr-3) + str(r),
-                                                                      u = get_column_letter(c_psnr-2) + str(r),
-                                                                      v = get_column_letter(c_psnr-1) + str(r))
+                    sheet.cell(row=r,column=c_psnr).value = __PSNR_AVG.format(y = get_column_letter(c_psnr-3) + str(r),
+                                                                              u = get_column_letter(c_psnr-2) + str(r),
+                                                                              v = get_column_letter(c_psnr-1) + str(r))
 
-            res_ref[__SEQ_AVERAGE][lid][__KB].append(get_column_letter(c_kb) + str(r))
-            res_ref[__SEQ_AVERAGE][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
-            res_ref[__SEQ_AVERAGE][lid][__TIME].append(get_column_letter(c_time) + str(r))
-            res_ref[__SEQ_AVERAGE][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][__KB].append(get_column_letter(c_kb) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][__TIME].append(get_column_letter(c_time) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
+
 
     sheet.freeze_panes = 'A4'
 
@@ -665,18 +762,20 @@ def __writeSheet(sheet,data,scale,qp_names):
 """
 Write results to workbook. Assume wb has a Summary and Result Sheet.
 """
-def __writeResults(wb,results,layers={}):
+def __writeResults(wb,results,layers={},s2_base=None):
     s_sheet = wb.get_sheet_by_name('Summary')
+    s2_sheet = wb.get_sheet_by_name('Summary2')
     res_pos = {}
     
     # Write test results
     for (test,res) in sorted(results.items()):
         n_sheet = wb.create_sheet(title=test,index=0)
-        res_pos[test] = __writeSheet(n_sheet,res[__RES],res[__SCALE],res[__QPS])
+        res_pos[test] = __writeSheet(n_sheet,res[__RES],res[__SCALE],res[__QPS],res[__INAMES])
     res_pos = __makeSummary(res_pos,layers)
     #print(res_pos)
     #write summary sheet
-    __writeSummary(s_sheet,res_pos)
+    __writeSummary(s_sheet,res_pos,res[__INAMES])
+    __writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
     wb.active = wb.get_index(s_sheet)
 
 """
@@ -684,8 +783,9 @@ Run given tests and write results to a exel file
 @param combi: Give a list of test names that are combined into one test
 @param layer_combi: Given tests are combined as like they were layers
 @param layers: A dict with test names as keys containing a list of layers to include in summary
+@param s2_base: Test name of the s2 summary that should be the base of the comparison
 """
-def runTests( tests, outname, combi = [], layer_combi = [], layers = {} ):
+def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base = None ):
     print('Start running tests...')
     for test in tests:
         #print("Running test {}...".format(test._test_name))
@@ -696,6 +796,6 @@ def runTests( tests, outname, combi = [], layer_combi = [], layers = {} ):
     res = __combiTestResults(res,combi,layer_combi)
 
     wb = xl.load_workbook(cfg.exel_template,keep_vba=True)
-    __writeResults(wb,res,layers)
+    __writeResults(wb,res,layers,s2_base)
     wb.save(cfg.results + outname + __FILE_END)
     print('Done.')

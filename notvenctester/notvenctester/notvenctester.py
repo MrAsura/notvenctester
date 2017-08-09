@@ -2,11 +2,11 @@
 Test suite for testing SHVC kvazaar
 """
 
-from tests.main import runTests
+from tests import main
 
 if __name__ == "__main__":
     print("Start tests...")
-    runTests()
+    main.runTests()
     print("Tests finished.")
 
     """

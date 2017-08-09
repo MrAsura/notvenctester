@@ -55,6 +55,8 @@ class shmTestInstance(TestInstance):
             else:
                 self._input_names[str(seq)] = (conf,seq)
 
+        self._input_names_order = input_names
+
         # If no outname given use hash as outname so parallel workers don't use the same file
         self._out_name = out_name if out_name else r'out\\' + self._get_fname_hash()
 
@@ -67,8 +69,10 @@ class shmTestInstance(TestInstance):
 
     def _get_fname_hash(self):
         hasher = hashlib.sha256()
-        hasher.update(str(self._configs).encode())
-        hasher.update(str(self._inputs).encode())
+        #hasher.update(str(self._configs).encode())
+        #hasher.update(str(self._inputs).encode())
+        #hasher.update(str(self._input_names_order).encode())
+        hasher.update(str(self._input_names).encode())
         hasher.update(str(self._qps).encode())
         hasher.update(str(self._layer_args).encode())
         return hasher.hexdigest()
@@ -246,6 +250,9 @@ class shmTestInstance(TestInstance):
         psnr = cls.__parsePSNR(lres_ex,num_layers,l_tot)
         return (kbs,kb,time,psnr,layers)
     
+    def getInputNames(self):
+        return self._input_names_order if self._input_names_order else list(self._input_names.keys())
+
     def getResults(self, resBuildFunc, l_tot):
         results = {}
         for (seq,qps) in self._results.items():
