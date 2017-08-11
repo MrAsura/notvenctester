@@ -72,7 +72,10 @@ class shmTestInstance(TestInstance):
         #hasher.update(str(self._configs).encode())
         #hasher.update(str(self._inputs).encode())
         #hasher.update(str(self._input_names_order).encode())
-        hasher.update(str(self._input_names).encode())
+        #hasher.update(str(self._input_names).encode())
+        for (name,val) in sorted(self._input_names.items()):
+            hasher.update(str(name).encode())
+            hasher.update(str(val).encode())
         hasher.update(str(self._qps).encode())
         hasher.update(str(self._layer_args).encode())
         return hasher.hexdigest()

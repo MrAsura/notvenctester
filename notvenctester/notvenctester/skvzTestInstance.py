@@ -42,6 +42,14 @@ class skvzTestInstance(TestInstance):
         self._qps = qps
         self._num_layers = max(len(layer_sizes),len(layer_args))
         
+        # Check that qps is valid
+        if len(qps) != 4:
+            raise ValueError("Need exactly four qp values to test to be able to calculate bdrate")
+        for qp in qps:
+            if hasattr(qp,"__iter__"):
+                if len(qp) != self._num_layers:
+                    raise ValueError("Need to have the same number of layer qps and layers")
+
         self._test_name = test_name
         if not test_name:
             self._test_name = inputs[0]
@@ -95,8 +103,11 @@ class skvzTestInstance(TestInstance):
         hasher = hashlib.sha256()
         #hasher.update(str(self._layer_sizes).encode())
         #hasher.update(str(self._inputs).encode())
-        hasher.update(str(self._input_names).encode())
+        #hasher.update(str(self._input_names).encode())
         #hasher.update(str(self._input_names_order).encode())
+        for (name,val) in sorted(self._input_names.items()):
+            hasher.update(str(name).encode())
+            hasher.update(str(val).encode())
         hasher.update(str(self._qps).encode())
         hasher.update(str(self._layer_args).encode())
         hasher.update(str(self._input_sizes).encode())

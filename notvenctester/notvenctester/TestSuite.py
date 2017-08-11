@@ -579,7 +579,7 @@ def __writeSummary2(sheet, ref_pos, base_test, order=None):
     row = sheet.max_row + 2
     col = 1
 
-    base_test_col = __writeSummary2ListHeader(sheet, sorted(ref_pos.keys()), order, base_test, row, col)
+    base_test_col = __writeSummary2ListHeader(sheet, sorted(tuple(seq_ref.values())[0].keys()), order, base_test, row, col)
     __writeSummary2List(sheet, seq_ref, base_test_col, row + 1, col + 1)
    
 
