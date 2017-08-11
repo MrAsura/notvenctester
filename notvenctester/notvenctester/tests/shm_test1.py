@@ -9,7 +9,7 @@ import cfg
 def main():
     seqs = [(r"D:\stuff\Kimono1_960x540_24_zerophase_0.9pi.yuv",cfg.sequence_path+r"hevc-B\Kimono1_1920x1080_24.yuv"),
             (r"D:\stuff\Cactus_960x540_50_zerophase_0.9pi.yuv",cfg.sequence_path+r"hevc-B\Cactus_1920x1080_50.yuv")]
-    const = (r"D:\stuff\encoder_my_scalable.cfg",r"D:\stuff\layers.cfg")
+    const = (r"D:\stuff\encoder_my_scalable.cfg",r"D:\stuff\layers_no_mp.cfg")
     confs = [const + (r"D:\stuff\Kimono-2x.cfg",),
              const + (r"D:\stuff\Cactus-2x.cfg",)]
     confs_bl = [(r"D:\stuff\encoder_my_main.cfg",r"D:\stuff\Kimono_halve.cfg"),
@@ -20,7 +20,7 @@ def main():
 
     in_names = ["Kimono","Cactuar"]
 
-    bl_qps = (7,12,17,22) #(22, 27, 32, 37)
+    bl_qps = (22, 27, 32, 37)#(7,12,17,22) #(22, 27, 32, 37)
     el_qps = bl_qps#tuple(map(lambda x: x-5,bl_qps))
 
     tests.append( shmTestInstance(inputs = [(seq0,) for (seq0,seq1) in seqs],
@@ -42,7 +42,7 @@ def main():
     tests.append( shmTestInstance(inputs = seqs,
                                   configs = confs,
                                   input_names = in_names,
-                                  qps = bl_qps,#tuple(zip(bl_qps,el_qps)),
+                                  qps = el_qps,
                                   layer_args = ("-f",'5'),
                                   #layer_args = (("--preset","ultrafast","-n","5",'-r','1','--gop','0','--threads','0'),
                                   #              ('--preset','ultrafast','-n','5','-r','1','--gop','0','--threads','0')),
@@ -55,3 +55,7 @@ def main():
                      "Scal":(-1,)},
              #combi=[("EL","BL")])#,
              layer_combi=[("BL","EL")])
+
+if __name__ == "__main__":
+    print("Execute test file " + __file__)
+    main()

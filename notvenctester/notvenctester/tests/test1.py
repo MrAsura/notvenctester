@@ -35,3 +35,8 @@ def main():
              layers={"Test2":(-1,),"Test3":(0,),makeCombiName(("Test1","Test2","Test2")):()},
              combi=[("Test1","Test2"),("Test1","Test1"),("Test2","Test1"),("Test2","Test2"),("Test1","Test2","Test2")])
 
+
+
+if __name__ == "__main__":
+    print("Execute test file " + __file__)
+    main()

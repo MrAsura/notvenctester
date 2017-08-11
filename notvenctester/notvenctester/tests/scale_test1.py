@@ -12,8 +12,8 @@ def main():
     tests = []
 
     in_names = ["Kimono","Cactuar"]
-
-    bl_qps = (7,12,17,22)#(22, 27, 32, 37)
+    name = "scale_test_low_qp_v2"
+    bl_qps = (7,12,17,22)#(22, 27, 32, 37)#(7,12,17,22)
     el_qps = tuple(map(lambda x: x-5,bl_qps))
 
     tests.append( skvzTestInstance(inputs = seqs,
@@ -39,9 +39,13 @@ def main():
                         input_layer_scales = (0.5,1)
                         ))
 
-    runTests(tests,"scale_test_low_qp",
+    runTests(tests, name,
              layers={makeLayerCombiName(["BL","EL"]):(-1,),
-                     "Scal":(-1,0,1)},
+                     "Scal":(-1,)},
 #             combi=[("EL","BL")],
              layer_combi=[("BL","EL")])
 
+
+if __name__ == "__main__":
+    print("Execute test file " + __file__)
+    main()
