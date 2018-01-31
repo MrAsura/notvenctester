@@ -10,10 +10,10 @@ import os
 def _worker(seq,qp,cmd,outfile):
     p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
     res = p.communicate()
-    stats = os.stat(outfile)
+    #stats = os.stat(outfile)
     #if res[1] is not None:
         #print(seq,qp,res[1].decode())
-    return (seq,qp,res[0].decode(),stats.st_size)
+    return (seq,qp,res[0].decode(),res[1].decode())#stats.st_size)
 
 class shmTestInstance(TestInstance):
     """Test instance class for shm"""
@@ -32,12 +32,14 @@ class shmTestInstance(TestInstance):
     __RES = r"output"
     __FS = r"file size"
     
-    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r''):
+    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'', bin_name = cfg.shm_bin, version=0):
 
         self._configs = configs
         self._inputs = inputs
         self._qps = qps
         self._layer_args = layer_args
+
+        self._bin_name = bin_name
 
         self._results = {}
         self._test_name = test_name
@@ -73,6 +75,7 @@ class shmTestInstance(TestInstance):
         #hasher.update(str(self._inputs).encode())
         #hasher.update(str(self._input_names_order).encode())
         #hasher.update(str(self._input_names).encode())
+        hasher.update(str(self._bin_name).encode())
         for (name,val) in sorted(self._input_names.items()):
             hasher.update(str(name).encode())
             hasher.update(str(val).encode())
@@ -90,7 +93,7 @@ class shmTestInstance(TestInstance):
                 if not hasattr(lqp,"__iter__"):
                     lqp = (lqp,)
 
-                cmd = [cfg.shm_bin]
+                cmd = [self._bin_name]
                 for conf in confs:
                     cmd.extend([self.__CFG,conf])
                 outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)

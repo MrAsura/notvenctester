@@ -81,6 +81,9 @@ def parseLayerCombiName(string):
 def makeLayerCombiName(combi):
     return __LCOMBI_SEP.join(combi)
 
+def getMaxLength( string_list ):
+    return max((len(x) for x in string_list))
+
 """
 Parse kb/s from test results 
 
@@ -350,6 +353,7 @@ def __writeBDSummaryMatrix(sheet, data, row, col):
                 r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KBS] + data[t2][__PSNR]]
                 sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(r1+r2))
                 sheet.cell(row = r, column = c).style = 'Percent'
+                sheet.cell(row = r, column = c).number_format = '0.00%'
             sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
     # Set conditional coloring
     form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
@@ -501,7 +505,7 @@ def __writeSummary(sheet, ref_pos, order = None):
 
     # Make columns wider
     for col in range(sheet.max_column):
-        sheet.column_dimensions[get_column_letter(col+1)].width = 15
+        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
 
 """
 Write summary 2 list header
@@ -585,7 +589,7 @@ def __writeSummary2(sheet, ref_pos, base_test, order=None):
 
     # Make columns wider
     for col in range(sheet.max_column):
-        sheet.column_dimensions[get_column_letter(col+1)].width = 15
+        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
 
 """
 Transform res_pos into summary test structure
@@ -787,9 +791,13 @@ Run given tests and write results to a exel file
 """
 def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base = None ):
     print('Start running tests...')
+    nt = 1
     for test in tests:
         #print("Running test {}...".format(test._test_name))
-        test.run()
+        print_out = "[{}/{}] ".format(nt,len(tests))
+        print(print_out, end='\r')
+        test.run(print_out)
+        nt += 1
     print('Tests complete.')
     print('Writing results to file {}...'.format(cfg.results + outname + __FILE_END))
     res = __parseTestResults(tests)

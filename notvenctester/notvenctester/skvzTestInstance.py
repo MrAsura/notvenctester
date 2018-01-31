@@ -32,16 +32,20 @@ class skvzTestInstance(TestInstance):
     @param out_name: Name for the output files
     @return self object
     """
-    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r""):
+    def __init__(self, test_name, inputs, input_sizes=[None], input_names=[None], layer_args=(), layer_sizes=[None], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"", bin_name=cfg.skvz_bin, version=0):
         self._layer_sizes = layer_sizes
         self._layer_args = layer_args
         self._inputs = inputs
         self._input_sizes = input_sizes
         self._input_layer_scales = input_layer_scales
 
+        self._bin_name = bin_name
+
         self._qps = qps
         self._num_layers = max(len(layer_sizes),len(layer_args))
         
+        self._version = version
+
         # Check that qps is valid
         if len(qps) != 4:
             raise ValueError("Need exactly four qp values to test to be able to calculate bdrate")
@@ -105,6 +109,7 @@ class skvzTestInstance(TestInstance):
         #hasher.update(str(self._inputs).encode())
         #hasher.update(str(self._input_names).encode())
         #hasher.update(str(self._input_names_order).encode())
+        hasher.update(str(self._bin_name).encode())
         for (name,val) in sorted(self._input_names.items()):
             hasher.update(str(name).encode())
             hasher.update(str(val).encode())
@@ -123,7 +128,7 @@ class skvzTestInstance(TestInstance):
                 if not hasattr(lqp,"__iter__"):
                     lqp = (lqp,)
 
-                cmd = [cfg.skvz_bin]
+                cmd = [self._bin_name]
                 for (l,l_res,l_arg,qp) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,lqp,fillvalue=None):
                     if l is not None:
                         cmd.append(l)
@@ -159,11 +164,15 @@ class skvzTestInstance(TestInstance):
                 self._results[seq][qp] = {self.__RES: out[1].decode(), self.__FS: stats.st_size}
                 i = i + 1
                 print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
-            print("")
+            #print("")
 
     __res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
     __lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
     __time_regex = r"\sEncoding\stime:\s(\d+.\d+)\ss."
+
+    #Version 5+ res regex
+    __res_regex_v5 = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR\sY\s(\d+[.,]\d+)\sU\s(\d+[.,]\d+)\sV\s(\d+[.,]\d+)"
+    __lres_regex_v5_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR\sY\s(\d+[.,]\d+)\sU\s(\d+[.,]\d+)\sV\s(\d+[.,]\d+)"
 
     """
     Parse kb/s from test results 
@@ -265,17 +274,23 @@ class skvzTestInstance(TestInstance):
     Parse needed values
     """
     @classmethod
-    def __parseVals(cls,results,l_tot):
+    def __parseVals(cls,results,l_tot,ver):
         trgt = {}
         res = results[cls.__RES]
         fs = results[cls.__FS]
-        res_ex = re.search(cls.__res_regex, str(res))
+        if ver <= 4:
+            res_ex = re.search(cls.__res_regex, str(res))
+        else:
+            res_ex = re.search(cls.__res_regex_v5, str(res))
         time_ex = re.search(cls.__time_regex, str(res))
         lres_ex = {}
         num_layers = int(res_ex.group(2))
         layers = tuple(range(num_layers))
         for lid in layers:
-            lres_ex[lid] = re.search(cls.__lres_regex_format.format(lid=lid), str(res))
+            if ver <= 4:
+                lres_ex[lid] = re.search(cls.__lres_regex_format.format(lid=lid), str(res))
+            else:
+                lres_ex[lid] = re.search(cls.__lres_regex_v5_format.format(lid=lid), str(res))
         layers = layers + (l_tot,)
         #kbs = cls.__parseKBS(res_ex,lres_ex,num_layers,l_tot)
         #kb = cls.__parseKB(res_ex,lres_ex,num_layers,l_tot)
@@ -296,7 +311,7 @@ class skvzTestInstance(TestInstance):
         results = {}
         for (seq,qps) in self._results.items():
             for (qp,res) in qps.items():
-                (kbs,kb,time,psnr,lids) = type(self).__parseVals(res,l_tot)
+                (kbs,kb,time,psnr,lids) = type(self).__parseVals(res,l_tot,self._version)
                 for lid in lids:
                     resBuildFunc(results,seq=seq,qp=qp,lid=lid,kbs=kbs[lid],kb=kb[lid],time=time[lid],psnr=psnr[lid])
         return results

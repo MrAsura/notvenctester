@@ -3,8 +3,10 @@ Configure parameters
 """
 
 sequence_path = r"D:\seqs\\"
-skvz_bin = r"D:\bins\skvz_v3.exe"
+skvz_bin = r"D:\bins\skvz_v5.exe"
+skvz_ver_bin = r"D:\bins\skvz_v{}.exe"
 shm_bin = r"D:\bins\shm.exe"
+shm_cfg = "D:\cfg\\"
 results = r"D:\r\notvenctester\\"
 
 exel_template = r"D:\dev\notvenctester\BD-rate-template.xlsm"
@@ -16,6 +18,31 @@ hevc_C = slice(7,11)
 hevc_D = slice(11,15)
 hevc_E = slice(15,18)
 hevc_F = slice(18,22)
+
+#Indices for each sequence
+PeopleOnStreet = 0
+Traffic = 1
+BasketballDrive = 2
+BQTerrace = 3
+Cactus = 4
+Kimono1 = 5
+ParkScene = 6
+BasketballDrill = 7
+BQMall = 8
+PartyScene = 9
+RaceHorsesC = 10
+BasketballPass = 11
+BlowingBubbles = 12
+BQSquare = 13
+RaceHorsesD = 14
+FourPeople = 15
+Johnny = 16
+KristenAndSara = 17
+BasketballDrillText = 18
+ChinaSpeed = 19
+SlideEditing = 20
+SlideShow = 21
+
 sequences = [
     (r"hevc-A\PeopleOnStreet_2560x1600_30.yuv",),
     (r"hevc-A\Traffic_2560x1600_30.yuv",),

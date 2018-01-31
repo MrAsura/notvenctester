@@ -48,10 +48,16 @@
     <Compile Include="tests\shm_test1.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\skvz_v3_battery.py">
+    <Compile Include="tests\skvz_battery.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\skvz_paper_tests.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test1.py" />
+    <Compile Include="tests\tmvp_merge_idx_test.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tests\__init__.py">
       <SubType>Code</SubType>
     </Compile>

@@ -21,7 +21,7 @@ class TestInstance(abc.ABC):
     @return self object
     """
     @abc.abstractmethod
-    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\\out"):
+    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\\out", bin_name="", version=0):
         self._results = {}
         pass
 
@@ -74,14 +74,16 @@ class TestInstance(abc.ABC):
         pass
 
     """
-    Execute the tests
+    Execute the tests.
+    @param print_out: A string that is printed if the tests are run again
     """
-    def run(self):
+    def run(self, print_out = ""):
         #Check if there exists results for current parameters already
         if self._results_exist():
             self._load_results()
         else:
             #Need to run tests again
+            print(print_out, end='')
             self._run_tests()
             self._save_results()
             print("Results saved.")
