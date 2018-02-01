@@ -10,10 +10,10 @@ import os
 def _worker(seq,qp,cmd,outfile):
     p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
     res = p.communicate()
-    #stats = os.stat(outfile)
+    stats = os.stat(outfile)
     #if res[1] is not None:
         #print(seq,qp,res[1].decode())
-    return (seq,qp,res[0].decode(),res[1].decode())#stats.st_size)
+    return (seq,qp,res[0].decode(),stats.st_size)
 
 class shmTestInstance(TestInstance):
     """Test instance class for shm"""
