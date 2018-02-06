@@ -7,13 +7,17 @@ import cfg
 import hashlib
 import os
 
-def _worker(seq,qp,cmd,outfile):
-    p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
-    res = p.communicate()
-    stats = os.stat(outfile)
-    if res[1] is not None and res[0] is None:
-        raise ValueError(seq,qp,res[1].decode())
-    return (seq,qp,res[0].decode(),stats.st_size,res[1].decode() if res[1] is not None else "")
+def _worker(seq,qp,cmd,outfile,outlog):
+    with open(outlog, 'w+') as lf:
+        #p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
+        p = sp.Popen(cmd, stdout=lf, stderr=sp.PIPE)
+        res = p.communicate()
+        stats = os.stat(outfile)
+        #if res[1] is not None and res[0] is None:
+        #    raise ValueError(seq,qp,res[1].decode())
+        lf.seek(0) #Need to move to start of file to read output
+        return (seq,qp,lf.read(),stats.st_size,res[1].decode() if res[1] is not None else "")
+        #return (seq,qp,res[0].decode(),stats.st_size,res[1].decode() if res[1] is not None else "")
 
 class shmTestInstance(TestInstance):
     """Test instance class for shm"""
@@ -98,6 +102,7 @@ class shmTestInstance(TestInstance):
                 for conf in confs:
                     cmd.extend([self.__CFG,conf])
                 outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)
+                outlog = outfile + r".log"
                 cmd.extend([self.__BIN, outfile])
                 if seq is not None:
                     for (lid,qp) in it.zip_longest(range(len(seq)),lqp,fillvalue=None):
@@ -108,7 +113,7 @@ class shmTestInstance(TestInstance):
                             cmd.extend([self.__QP.format(lid=lid),str(lqp[0])])
 
                 cmd.extend(self._layer_args)
-                runs[name][str(lqp)] = (cmd, outfile)
+                runs[name][str(lqp)] = (cmd, outfile, outlog)
 
         seq_hash_tests_done = {} #Hold the number of test done for each sequence
         print_hash_format = "\t"
@@ -137,8 +142,8 @@ class shmTestInstance(TestInstance):
             print(line_sep+seq)
             line_sep += "\t|"
             self._results[seq] = {}
-            for (qp,(cmd,outfile)) in qps.items():
-                pool.apply_async(_worker,(seq,qp,cmd,outfile),callback=cb,error_callback=cb_err)
+            for (qp,(cmd,outfile,outlog)) in qps.items():
+                pool.apply_async(_worker,(seq,qp,cmd,outfile,outlog),callback=cb,error_callback=cb_err)
         print(print_hash_format.format(**seq_hash_tests_done),end='\r')
         # Close pool and wait untill everythin is finnished
         pool.close()

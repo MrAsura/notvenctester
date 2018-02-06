@@ -144,8 +144,9 @@ class skvzTestInstance(TestInstance):
                         cmd.extend([self.__INPUT,cfg.sequence_path + seq])
 
                 outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)
+                outlog = outfile + r".log"
                 cmd.extend([self.__OUTPUT, outfile])    
-                seq_runs[str(lqp)] = (cmd,outfile)
+                seq_runs[str(lqp)] = (cmd,outfile,outlog)
             runs[name] = seq_runs
    
         print("Running test {}".format(self._test_name))
@@ -154,16 +155,19 @@ class skvzTestInstance(TestInstance):
             self._results[seq] = {}
             i = 0
             print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
-            for (qp,(cmd,outfile)) in qps.items():
-                #print(cmd)
-                p = sp.Popen(cmd,stdout=None,stderr=sp.PIPE)
-                out = p.communicate()
-                #print("_________________________out_____________________")
-                #print(out)
-                stats = os.stat(outfile)
-                self._results[seq][qp] = {self.__RES: out[1].decode(), self.__FS: stats.st_size}
-                i = i + 1
-                print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
+            for (qp,(cmd,outfile,outlog)) in qps.items():
+                with open(outlog,'w+',) as lf:
+                    #print(cmd)
+                    p = sp.Popen(cmd,stdout=None,stderr=lf)#sp.PIPE)
+                    out = p.communicate()
+                    #print("_________________________out_____________________")
+                    #print(out)
+                    stats = os.stat(outfile)
+                    #self._results[seq][qp] = {self.__RES: out[1].decode(), self.__FS: stats.st_size}
+                    lf.seek(0) #Need to move to start of file to read output
+                    self._results[seq][qp] = {self.__RES: lf.read(), self.__FS: stats.st_size}
+                    i = i + 1
+                    print("    {} of {} runs complete.\r".format(i,len(qps.keys())),end='')
             #print("")
 
     __res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
