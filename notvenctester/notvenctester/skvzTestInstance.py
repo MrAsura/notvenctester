@@ -129,7 +129,7 @@ class skvzTestInstance(TestInstance):
                     lqp = (lqp,)
 
                 cmd = [self._bin_name]
-                for (l,l_res,l_arg,qp) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,lqp,fillvalue=None):
+                for (l,l_res,l_arg,qp,seq) in it.zip_longest([None] + [self.__LAYER] * (self._num_layers - 1),sizes,self._layer_args,lqp,seqs,fillvalue=None):
                     if l is not None:
                         cmd.append(l)
                     if l_arg is not None:
@@ -140,9 +140,9 @@ class skvzTestInstance(TestInstance):
                         cmd.extend([self.__QP,str(qp)])
                     else:
                         cmd.extend([self.__QP,str(lqp[0])])
-                        
-                    for input in seqs:
-                        cmd.extend([self.__INPUT,cfg.sequence_path + input])
+                    if seq is not None:
+                        cmd.extend([self.__INPUT,cfg.sequence_path + seq])
+
                 outfile = cfg.results + self._out_name + "_{qp}_{seq}.hevc".format(qp=lqp,seq=name)
                 cmd.extend([self.__OUTPUT, outfile])    
                 seq_runs[str(lqp)] = (cmd,outfile)

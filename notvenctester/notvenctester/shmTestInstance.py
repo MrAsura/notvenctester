@@ -11,9 +11,9 @@ def _worker(seq,qp,cmd,outfile):
     p = sp.Popen(cmd,stdout=sp.PIPE,stderr=sp.PIPE)
     res = p.communicate()
     stats = os.stat(outfile)
-    #if res[1] is not None:
-        #print(seq,qp,res[1].decode())
-    return (seq,qp,res[0].decode(),stats.st_size)
+    if res[1] is not None and res[0] is None:
+        raise ValueError(seq,qp,res[1].decode())
+    return (seq,qp,res[0].decode(),stats.st_size,res[1].decode() if res[1] is not None else "")
 
 class shmTestInstance(TestInstance):
     """Test instance class for shm"""
@@ -31,6 +31,7 @@ class shmTestInstance(TestInstance):
 
     __RES = r"output"
     __FS = r"file size"
+    __ERR = r"errors"
     
     def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'', bin_name = cfg.shm_bin, version=0):
 
@@ -116,16 +117,16 @@ class shmTestInstance(TestInstance):
         #Callback function for workers
         def cb( res ):
             nonlocal seq_hash_tests_done, self
-            (seq,qp,val,fs) = res
+            (seq,qp,val,fs,err) = res
             # Update printout
             seq_hash_tests_done[hash_format(seq)] += 1
             print(print_hash_format.format(**seq_hash_tests_done),end='\r')
             # Save reuslts
-            self._results[seq][qp] = {self.__RES: val, self.__FS: fs}
+            self._results[seq][qp] = {self.__RES: val, self.__FS: fs, self.__ERR: err}
 
         def cb_err( *args, **kwargs ):
-            print("Error in worker") 
-
+            print("Error in worker: ", args, *args, **kwargs) 
+            
         pool = Pool(processes = 3)
         print("Start running {name} tests for sequences:".format(name=self._test_name))
         # Add test to pool and run in parallel

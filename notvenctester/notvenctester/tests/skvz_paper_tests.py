@@ -8,6 +8,7 @@ from TestSuite import runTests,makeCombiName,makeLayerCombiName
 import cfg
 import itertools as it
 from functools import reduce
+import re
 
 def main():
     plus_shm = True
@@ -17,7 +18,7 @@ def main():
     seqs = cfg.sequences[cfg.hevc_A] + cfg.sequences[cfg.hevc_B]
     in_names = cfg.class_sequence_names[cfg.hevc_A] + cfg.class_sequence_names[cfg.hevc_B]
 
-    preset = 'ultrafast'#"veryslow"#"ultrafast"
+    preset = 'ultrafast'#'veryslow'#'ultrafast'#"veryslow"#"ultrafast"
     version = 5
     outname = "skvz_v{}_paper_{}{}{}".format(version,preset, "_shm" if plus_shm else "", "_thrds" if plus_threads else "")
 
@@ -37,8 +38,11 @@ def main():
 
     shared_param = ("--preset",preset,'--gop','0')
 
-    thread_param = ('--threads','0','--owf','1','--wpp')
+    thread_param = ('--threads','auto','--owf','auto','--wpp')
     no_thread_param = ('--threads','0','--owf','1','--no-wpp','--cpuid','0')
+
+    in_layer_0 = ('--input-layer','0')
+    in_layer_1 = ('--input-layer','1')
 
     ref_frames = ('-r','1')
     scal_ref_frames = ('--ilr','1')
@@ -60,13 +64,20 @@ def main():
     DQP2 = "_DQP2" # Second delta qp used
     THRD = "_THRD" #Use threads
 
+    round2 = lambda x,base=2: int(base*round(x/base))
+    strscale = lambda size,scale: "x".join(map(lambda x: str(round2(int(x)*scale)),re.search("_*(\d+)x(\d+)[_.]*",size).group(1,2)))
+    seq_scale = lambda scale, st: (st[0], strscale(st[1],scale), st[2])
+    seq_map = lambda scale, seq: r"{}_{}_{}_zerophase_0.9pi.yuv".format( *seq_scale(scale,re.search("(.+\\\\.+)_(\d+x\d+)_(\d+)[_.]",seq).group(1,2,3)) )
+    bl_seq_map = lambda scale: lambda seq: (seq_map(scale[0], seq[0]),)
+    scal_seq_map = lambda scale: lambda seq: (seq_map(scale[0],seq[0]), ) + seq #TODO: Add scaling to el seq?
+
     single_layer_BL_param = [val for val in 
-                             ((reduce(lambda x,y: x + y[0], param, "BL"),) + reduce(lambda x,y: x + (y[1],), param, tuple())
+                             ((reduce(lambda x,y: x + y[0], param, "BL"),) + reduce(lambda x,y: x + y[1], param, tuple())
                              for param in
                              it.product(
-                                [(SCALED,bl_scale),("",bl_snr_scale),(HSCALED,bl_halve_scale)], #Scale
-                                [(SNR,bl_snr_qps),("",bl_spat_qps)], #Qp
-                                [("",no_thread_param),(THRD,thread_param)], #Threads
+                                [(SCALED,((1,),tuple(map(bl_seq_map(bl_scale),seqs)))),("",(bl_snr_scale,seqs)),(HSCALED,((1,),tuple(map(bl_seq_map(bl_halve_scale),seqs))))], #Scale
+                                [(SNR,(bl_snr_qps,)),("",(bl_spat_qps,))], #Qp
+                                [("",(no_thread_param,)),(THRD,(thread_param,))], #[("",(tuple(),))]#[("",(no_thread_param,)),(THRD,(thread_param,))], #Threads
                                 )
                              ) if (((SCALED in val[0] or HSCALED in val[0]) and not (SNR in val[0])) or (not (SCALED in val[0] or HSCALED in val[0]) and SNR in val[0]))
                             ]
@@ -75,29 +86,30 @@ def main():
                              for param in
                              it.product(
                                 [("",el_scale)], #Scale
+                                [("",seqs)], #inputs
                                 #[(DQP1,el_spat_qps[0]),"""(DQP2,el_spat_qps[1]),"""(DQP1+SNR,el_snr_qps[0]),"""(DQP2+SNR,el_snr_qps[1])"""], #Qp
                                 [(DQP1,el_spat_qps[0]), (DQP1+SNR,el_snr_qps[0]),], #Qp
-                                [("",no_thread_param),(THRD,thread_param)], #Threads
+                                [("",no_thread_param),(THRD,thread_param)], #[("",tuple())]#[("",no_thread_param),(THRD,thread_param)], #Threads
                                 )
                             ]
     two_layer_param = [val for val in
-                        ((reduce(lambda x,y: x + y[0], param, "SC"),) + reduce(lambda x,y: x + (y[1],), param, tuple())
+                        ((reduce(lambda x,y: x + y[0], param, "SC"),) + reduce(lambda x,y: x + y[1], param, tuple())
                         for param in
                         it.product(
-                            [(SCAL,scal_scale),("1X",scal_snr_scale),(HSCAL,scal_halve_scale)], #Scale
+                            [(SCAL,((1,1),tuple(map(scal_seq_map(scal_scale),seqs)))),("1X",(scal_snr_scale,seqs)),(HSCAL,((1,1),tuple(map(scal_seq_map(scal_halve_scale),seqs))))], #Scale
                             #[(DQP1,scal_spat_qps[0]),"""(DQP2,scal_spat_qps[1]),"""(DQP1+SNR,scal_snr_qps[0]),"""(DQP2+SNR,scal_snr_qps[1])"""], #Qp
-                            [(DQP1,scal_spat_qps[0]), (DQP1+SNR,scal_snr_qps[0]),], #Qp
-                            [("",no_thread_param),("_THRD",thread_param)], #Threads
+                            [(DQP1,(scal_spat_qps[0],)), (DQP1+SNR,(scal_snr_qps[0],)),], #Qp
+                            [("",(no_thread_param,)),(THRD,(thread_param,))],#[("",(tuple(),))]#[("",(no_thread_param,)),("_THRD",(thread_param,))], #Threads
                         )
                       ) if (((SCAL in val[0] or HSCAL in val[0]) and not (SNR in val[0])) or (not (SCAL in val[0] or HSCAL in val[0]) and SNR in val[0])) ] #(SNR in val[0] or SCAL in val[0] or HSCAL in val[0]) ]
 
     tests = []
 
     # Add BL/EL tests
-    for (name, scale, qp, thrd) in single_layer_BL_param + single_layer_EL_param:
+    for (name, scale, input, qp, thrd) in single_layer_BL_param + single_layer_EL_param:
         tests.append( skvzTestInstance(
             version = version,
-            inputs = seqs,
+            inputs = input,
             input_names = in_names,
             test_name = name,
             qps = qp,
@@ -106,15 +118,15 @@ def main():
             ))
             
     # Add scalable tests
-    for (name, scale, qp, thrd) in two_layer_param:
+    for (name, scale, input, qp, thrd) in two_layer_param:
         tests.append( skvzTestInstance(
             version = version,
-            inputs = seqs,
+            inputs = input,
             input_names = in_names,
             test_name = name,
             qps = qp,
             layer_args = (shared_param + ref_frames + thrd,
-                          shared_param + ref_frames + scal_ref_frames),
+                          shared_param + ref_frames + scal_ref_frames + thrd),
             input_layer_scales = scale,
             ))
     
@@ -154,7 +166,7 @@ def main():
         scal_confs = list(map(lambda x: scal_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono-2x.cfg",
                                                                                     r"Cactus-2x.cfg",
                                                                                     r"BasketballDrive-2x.cfg",
-                                                                                    r"ParkScehe-2x.cfg",
+                                                                                    r"ParkScene-2x.cfg",
                                                                                     r"BQTerrace-2x.cfg",
                                                                                     r"Traffic-2x.cfg",
                                                                                     r"PeopleOnStreet-2x.cfg",]
@@ -163,7 +175,7 @@ def main():
         hscal_confs = list(map(lambda x: scal_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono-1.5x.cfg",
                                                                                     r"Cactus-1.5x.cfg",
                                                                                     r"BasketballDrive-1.5x.cfg",
-                                                                                    r"ParkScehe-1.5x.cfg",
+                                                                                    r"ParkScene-1.5x.cfg",
                                                                                     r"BQTerrace-1.5x.cfg",
                                                                                     r"Traffic-1.5x.cfg",
                                                                                     r"PeopleOnStreet-1.5x.cfg",]
@@ -172,7 +184,7 @@ def main():
         snr_confs = list(map(lambda x: scal_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono-SNR.cfg",
                                                                                     r"Cactus-SNR.cfg",
                                                                                     r"BasketballDrive-SNR.cfg",
-                                                                                    r"ParkScehe-SNR.cfg",
+                                                                                    r"ParkScene-SNR.cfg",
                                                                                     r"BQTerrace-SNR.cfg",
                                                                                     r"Traffic-SNR.cfg",
                                                                                     r"PeopleOnStreet-SNR.cfg",]
@@ -181,7 +193,7 @@ def main():
         bl_0_5x_confs = list(map(lambda x: l_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono-0.5x.cfg",
                                                                                     r"Cactus-0.5x.cfg",
                                                                                     r"BasketballDrive-0.5x.cfg",
-                                                                                    r"ParkScehe-0.5x.cfg",
+                                                                                    r"ParkScene-0.5x.cfg",
                                                                                     r"BQTerrace-0.5x.cfg",
                                                                                     r"Traffic-0.5x.cfg",
                                                                                     r"PeopleOnStreet-0.5x.cfg",]
@@ -190,7 +202,7 @@ def main():
         bl_0_7x_confs = list(map(lambda x: l_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono-0.7x.cfg",
                                                                                     r"Cactus-0.7x.cfg",
                                                                                     r"BasketballDrive-0.7x.cfg",
-                                                                                    r"ParkScehe-0.7x.cfg",
+                                                                                    r"ParkScene-0.7x.cfg",
                                                                                     r"BQTerrace-0.7x.cfg",
                                                                                     r"Traffic-0.7x.cfg",
                                                                                     r"PeopleOnStreet-0.7x.cfg",]
@@ -199,7 +211,7 @@ def main():
         el_confs = list(map(lambda x: l_consts + (cfg.shm_cfg+"paper_tests\\"+x,), [r"Kimono.cfg",
                                                                                     r"Cactus.cfg",
                                                                                     r"BasketballDrive.cfg",
-                                                                                    r"ParkScehe.cfg",
+                                                                                    r"ParkScene.cfg",
                                                                                     r"BQTerrace.cfg",
                                                                                     r"Traffic.cfg",
                                                                                     r"PeopleOnStreet.cfg",]
@@ -255,12 +267,16 @@ def main():
     #################_Define_run_tests_parameters_#################
     #Generate layer combi
     combi = [(bl[0],el[0],) for el in single_layer_EL_param for bl in single_layer_BL_param if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0])) and ((THRD in bl[0]) == (THRD in el[0]))] #(SCALED in bl[0] or HSCALED in bl[0] or SNR in el[0]) ]
-    combi += [(bl[0],el[0],) for el in shm_EL_param for bl in shm_BL_param if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0]))]
+    if plus_shm:
+        combi += [(bl[0],el[0],) for el in shm_EL_param for bl in shm_BL_param if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0]))]
 
     #Generate layers dict
-    layers = { makeLayerCombiName(name) : ((-1,1) if (len(name) > 1) or ((name[0] not in [val[0] for val in single_layer_BL_param]) and (name[0] not in [val[0] for val in single_layer_EL_param]) and (name[0] not in [val[0] for val in shm_BL_param]) and (name[0] not in [val[0] for val in shm_EL_param])) else tuple())
-              for name in [(val[0],) for val in single_layer_BL_param] + [(val[0],) for val in single_layer_EL_param] + [(val[0],) for val in two_layer_param] + [(val[0],) for val in shm_param] + [(val[0],) for val in shm_BL_param] + [(val[0],) for val in shm_EL_param] + combi}
-
+    if plus_shm:
+        layers = { makeLayerCombiName(name) : ((-1,1) if (len(name) > 1) or ((name[0] not in [val[0] for val in single_layer_BL_param]) and (name[0] not in [val[0] for val in single_layer_EL_param]) and (name[0] not in [val[0] for val in shm_BL_param]) and (name[0] not in [val[0] for val in shm_EL_param])) else tuple())
+                  for name in [(val[0],) for val in single_layer_BL_param] + [(val[0],) for val in single_layer_EL_param] + [(val[0],) for val in two_layer_param] + [(val[0],) for val in shm_param] + [(val[0],) for val in shm_BL_param] + [(val[0],) for val in shm_EL_param] + combi}
+    else:
+        layers = { makeLayerCombiName(name) : ((-1,1) if (len(name) > 1) or ((name[0] not in [val[0] for val in single_layer_BL_param]) and (name[0] not in [val[0] for val in single_layer_EL_param])) else tuple())
+                  for name in [(val[0],) for val in single_layer_BL_param] + [(val[0],) for val in single_layer_EL_param] + [(val[0],) for val in two_layer_param] + combi}
     runTests(tests, outname,
              layers=layers,
              layer_combi=combi)
