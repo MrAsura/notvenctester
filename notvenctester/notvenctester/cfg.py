@@ -3,7 +3,7 @@ Configure parameters
 """
 
 sequence_path = r"D:\seqs\\"
-skvz_bin = r"D:\bins\skvz_v5.exe"
+skvz_bin = r"D:\bins\skvz_v6.exe"
 skvz_ver_bin = r"D:\bins\skvz_v{}.exe"
 shm_bin = r"D:\bins\shm.exe"
 shm_cfg = "D:\cfg\\"

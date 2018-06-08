@@ -789,14 +789,14 @@ Run given tests and write results to a exel file
 @param layers: A dict with test names as keys containing a list of layers to include in summary
 @param s2_base: Test name of the s2 summary that should be the base of the comparison
 """
-def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base = None ):
+def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base = None, input_res = False ):
     print('Start running tests...')
     nt = 1
     for test in tests:
         #print("Running test {}...".format(test._test_name))
         print_out = "[{}/{}] ".format(nt,len(tests))
         print(print_out, end='\r')
-        test.run(print_out)
+        test.run(print_out, input_res)
         nt += 1
     print('Tests complete.')
     print('Writing results to file {}...'.format(cfg.results + outname + __FILE_END))

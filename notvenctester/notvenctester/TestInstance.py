@@ -54,8 +54,12 @@ class TestInstance(abc.ABC):
     """
     Load results from file
     """
-    def _load_results(self):
-        file = open(cfg.results + self._get_res_folder() + self._get_fname_hash(),mode = 'r')
+    def _load_results(self,input_res=False):
+        if input_res:
+            hash = input("Hash for {}: ".format(self._test_name))
+            file = open(cfg.results + self._get_res_folder() + hash, mode = 'r')
+        else:
+            file = open(cfg.results + self._get_res_folder() + self._get_fname_hash(),mode = 'r')
         self._results = json.load(file)
         file.close()
 
@@ -77,10 +81,10 @@ class TestInstance(abc.ABC):
     Execute the tests.
     @param print_out: A string that is printed if the tests are run again
     """
-    def run(self, print_out = ""):
+    def run(self, print_out = "", input_res = False):
         #Check if there exists results for current parameters already
-        if self._results_exist():
-            self._load_results()
+        if self._results_exist() or input_res:
+            self._load_results(input_res)
         else:
             #Need to run tests again
             print(print_out, end='')

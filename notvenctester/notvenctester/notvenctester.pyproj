@@ -36,6 +36,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\main.py" />
+    <Compile Include="tests\perf_test.py" />
     <Compile Include="tests\preset_scal_test.py">
       <SubType>Code</SubType>
     </Compile>

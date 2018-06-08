@@ -1,4 +1,4 @@
-"""
+﻿"""
 Skvz paper tests
 """
 
@@ -30,6 +30,8 @@ def main():
     delta_snr_qp = (-5,)#(-4,-6) #SNR
     delta_spat_qp = (0,)#(0,2) #Spatial
 
+    dqps = (1,2,3,4,5,6,7,8,9,10)
+
     el_snr_qps = [tuple(map(lambda x: x+dqp, bl_snr_qps)) for dqp in delta_snr_qp]
     el_spat_qps = [tuple(map(lambda x: x+dqp, bl_spat_qps)) for dqp in delta_spat_qp]
 
@@ -40,6 +42,9 @@ def main():
 
     thread_param = ('--threads','auto','--owf','auto','--wpp')
     no_thread_param = ('--threads','0','--owf','1','--no-wpp','--cpuid','0')
+
+    tmvp =('--tmvp')
+    no_tmvp = ('--no-tmvp')
 
     in_layer_0 = ('--input-layer','0')
     in_layer_1 = ('--input-layer','1')
@@ -62,6 +67,7 @@ def main():
     HSCAL = "1.5X" # 1.5x scalability
     DQP1 = ""#"_DQP1" # First delta qp used
     DQP2 = "_DQP2" # Second delta qp used
+    DQP = r"_DQP{}"
     THRD = "_THRD" #Use threads
 
     round2 = lambda x,base=2: int(base*round(x/base))
@@ -71,63 +77,117 @@ def main():
     bl_seq_map = lambda scale: lambda seq: (seq_map(scale[0], seq[0]),)
     scal_seq_map = lambda scale: lambda seq: (seq_map(scale[0],seq[0]), ) + seq #TODO: Add scaling to el seq?
 
+    #single_layer_BL_param = [val for val in 
+    #                         ((reduce(lambda x,y: x + y[0], param, "BL"),) + reduce(lambda x,y: x + y[1], param, tuple())
+    #                         for param in
+    #                         it.product(
+    #                            [(SCALED,((1,),tuple(map(bl_seq_map(bl_scale),seqs)))),("",(bl_snr_scale,seqs)),(HSCALED,((1,),tuple(map(bl_seq_map(bl_halve_scale),seqs))))], #Scale
+    #                            [(SNR,(bl_snr_qps,)),("",(bl_spat_qps,))], #Qp
+    #                            [("",(no_thread_param,)),(THRD,(thread_param,))], #[("",(tuple(),))]#[("",(no_thread_param,)),(THRD,(thread_param,))], #Threads
+    #                            )
+    #                         ) if (((SCALED in val[0] or HSCALED in val[0]) and not (SNR in val[0])) or (not (SCALED in val[0] or HSCALED in val[0]) and SNR in val[0]))
+    #                        ]
+
+    #single_layer_EL_param = [(reduce(lambda x,y: x + y[0], param, "EL"),) + reduce(lambda x,y: x + (y[1],), param, tuple())
+    #                         for param in
+    #                         it.product(
+    #                            [("",el_scale)], #Scale
+    #                            [("",seqs)], #inputs
+    #                            #[(DQP1,el_spat_qps[0]),"""(DQP2,el_spat_qps[1]),"""(DQP1+SNR,el_snr_qps[0]),"""(DQP2+SNR,el_snr_qps[1])"""], #Qp
+    #                            [(DQP1,el_spat_qps[0]), (DQP1+SNR,el_snr_qps[0]),], #Qp
+    #                            [("",no_thread_param),(THRD,thread_param)], #[("",tuple())]#[("",no_thread_param),(THRD,thread_param)], #Threads
+    #                            )
+    #                        ]
+    #two_layer_param = [val for val in
+    #                    ((reduce(lambda x,y: x + y[0], param, "SC"),) + reduce(lambda x,y: x + y[1], param, tuple())
+    #                    for param in
+    #                    it.product(
+    #                        [(SCAL,((1,1),tuple(map(scal_seq_map(scal_scale),seqs)))),("1X",(scal_snr_scale,seqs)),(HSCAL,((1,1),tuple(map(scal_seq_map(scal_halve_scale),seqs))))], #Scale
+    #                        #[(DQP1,scal_spat_qps[0]),"""(DQP2,scal_spat_qps[1]),"""(DQP1+SNR,scal_snr_qps[0]),"""(DQP2+SNR,scal_snr_qps[1])"""], #Qp
+    #                        [(DQP1,(scal_spat_qps[0],)), (DQP1+SNR,(scal_snr_qps[0],)),], #Qp
+    #                        [("",(no_thread_param,)),(THRD,(thread_param,))],#[("",(tuple(),))]#[("",(no_thread_param,)),("_THRD",(thread_param,))], #Threads
+    #                    )
+    #                  ) if (((SCAL in val[0] or HSCAL in val[0]) and not (SNR in val[0])) or (not (SCAL in val[0] or HSCAL in val[0]) and SNR in val[0])) ] #(SNR in val[0] or SCAL in val[0] or HSCAL in val[0]) ]
+
     single_layer_BL_param = [val for val in 
                              ((reduce(lambda x,y: x + y[0], param, "BL"),) + reduce(lambda x,y: x + y[1], param, tuple())
                              for param in
                              it.product(
-                                [(SCALED,((1,),tuple(map(bl_seq_map(bl_scale),seqs)))),("",(bl_snr_scale,seqs)),(HSCALED,((1,),tuple(map(bl_seq_map(bl_halve_scale),seqs))))], #Scale
-                                [(SNR,(bl_snr_qps,)),("",(bl_spat_qps,))], #Qp
-                                [("",(no_thread_param,)),(THRD,(thread_param,))], #[("",(tuple(),))]#[("",(no_thread_param,)),(THRD,(thread_param,))], #Threads
+                                [(SNR,(bl_snr_qps,)),], #Qp
+                                [(THRD,(thread_param,)),], #[("",(tuple(),))]#[("",(no_thread_param,)),(THRD,(thread_param,))], #Threads
                                 )
-                             ) if (((SCALED in val[0] or HSCALED in val[0]) and not (SNR in val[0])) or (not (SCALED in val[0] or HSCALED in val[0]) and SNR in val[0]))
+                             )
                             ]
 
-    single_layer_EL_param = [(reduce(lambda x,y: x + y[0], param, "EL"),) + reduce(lambda x,y: x + (y[1],), param, tuple())
+    single_layer_EL_param = [(reduce(lambda x,y: x + y[0], param, "EL"),) + reduce(lambda x,y: x + y[1], param, tuple())
                              for param in
                              it.product(
-                                [("",el_scale)], #Scale
-                                [("",seqs)], #inputs
-                                #[(DQP1,el_spat_qps[0]),"""(DQP2,el_spat_qps[1]),"""(DQP1+SNR,el_snr_qps[0]),"""(DQP2+SNR,el_snr_qps[1])"""], #Qp
-                                [(DQP1,el_spat_qps[0]), (DQP1+SNR,el_snr_qps[0]),], #Qp
-                                [("",no_thread_param),(THRD,thread_param)], #[("",tuple())]#[("",no_thread_param),(THRD,thread_param)], #Threads
+                                [(DQP.format(dqp),(tuple(map(lambda x: x - dqp, bl_snr_qps)),)) for dqp in dqps],#[(DQP1,el_spat_qps[0]), (DQP1+SNR,el_snr_qps[0]),], #Qp
+                                [(THRD,(thread_param,)),], #[("",tuple())]#[("",no_thread_param),(THRD,thread_param)], #Threads
                                 )
                             ]
     two_layer_param = [val for val in
                         ((reduce(lambda x,y: x + y[0], param, "SC"),) + reduce(lambda x,y: x + y[1], param, tuple())
                         for param in
                         it.product(
-                            [(SCAL,((1,1),tuple(map(scal_seq_map(scal_scale),seqs)))),("1X",(scal_snr_scale,seqs)),(HSCAL,((1,1),tuple(map(scal_seq_map(scal_halve_scale),seqs))))], #Scale
-                            #[(DQP1,scal_spat_qps[0]),"""(DQP2,scal_spat_qps[1]),"""(DQP1+SNR,scal_snr_qps[0]),"""(DQP2+SNR,scal_snr_qps[1])"""], #Qp
-                            [(DQP1,(scal_spat_qps[0],)), (DQP1+SNR,(scal_snr_qps[0],)),], #Qp
-                            [("",(no_thread_param,)),(THRD,(thread_param,))],#[("",(tuple(),))]#[("",(no_thread_param,)),("_THRD",(thread_param,))], #Threads
+                            [(DQP.format(dqp),(tuple(map(lambda x: (x, x - dqp), bl_snr_qps)),)) for dqp in dqps],#[(DQP1,(scal_spat_qps[0],)), (DQP1+SNR,(scal_snr_qps[0],)),], #Qp
+                            [(THRD,(thread_param,)),],#[("",(tuple(),))]#[("",(no_thread_param,)),("_THRD",(thread_param,))], #Threads
                         )
-                      ) if (((SCAL in val[0] or HSCAL in val[0]) and not (SNR in val[0])) or (not (SCAL in val[0] or HSCAL in val[0]) and SNR in val[0])) ] #(SNR in val[0] or SCAL in val[0] or HSCAL in val[0]) ]
+                      )
+                      ]
+
 
     tests = []
 
     # Add BL/EL tests
-    for (name, scale, input, qp, thrd) in single_layer_BL_param + single_layer_EL_param:
+    #for (name, scale, input, qp, thrd) in single_layer_BL_param + single_layer_EL_param:
+    #    tests.append( skvzTestInstance(
+    #        version = version,
+    #        inputs = input,
+    #        input_names = in_names,
+    #        test_name = name,
+    #        qps = qp,
+    #        layer_args = (shared_param + ref_frames + thrd,),
+    #        input_layer_scales = scale,
+    #        ))
+            
+    ## Add scalable tests
+    #for (name, scale, input, qp, thrd) in two_layer_param:
+    #    tests.append( skvzTestInstance(
+    #        version = version,
+    #        inputs = input,
+    #        input_names = in_names,
+    #        test_name = name,
+    #        qps = qp,
+    #        layer_args = (shared_param + ref_frames + thrd,
+    #                      shared_param + ref_frames + scal_ref_frames + thrd),
+    #        input_layer_scales = scale,
+    #        ))
+
+    for (name, qp, thrd) in single_layer_BL_param + single_layer_EL_param:
         tests.append( skvzTestInstance(
             version = version,
-            inputs = input,
+            inputs = seqs,
             input_names = in_names,
             test_name = name,
             qps = qp,
             layer_args = (shared_param + ref_frames + thrd,),
-            input_layer_scales = scale,
+            input_layer_scales = (1,),
+            bin_name = r"D:\bins\kvazaar.exe",
             ))
             
     # Add scalable tests
-    for (name, scale, input, qp, thrd) in two_layer_param:
+    for (name, qp, thrd) in two_layer_param:
         tests.append( skvzTestInstance(
             version = version,
-            inputs = input,
+            inputs = seqs,
             input_names = in_names,
             test_name = name,
             qps = qp,
             layer_args = (shared_param + ref_frames + thrd,
                           shared_param + ref_frames + scal_ref_frames + thrd),
-            input_layer_scales = scale,
+            input_layer_scales = (1,1),
+            bin_name = r"D:\bins\kvazaar.exe",
             ))
     
     #################_Define_shm_tests_#################
@@ -249,7 +309,7 @@ def main():
                         ((reduce(lambda x,y: x + y[0], param, "SHM"),) + reduce(lambda x,y: x + y[1], param, tuple())
                         for param in
                         it.product(
-                            [(SCAL,(shm_scal_2x_seqs,scal_confs,scal_spat_qps[0])),(HSCAL,(shm_scal_1_5x_seqs,hscal_confs,scal_spat_qps[0])),(SNR,(shm_snr_seqs,snr_confs,scal_spat_qps[0])),], #inputs + confs + qp
+                            [(SCAL,(shm_scal_2x_seqs,scal_confs,scal_spat_qps[0])),(HSCAL,(shm_scal_1_5x_seqs,hscal_confs,scal_spat_qps[0])),(SNR,(shm_snr_seqs,snr_confs,scal_snr_qps[0])),], #inputs + confs + qp
                         )
                       ) if  ((SCAL in val[0] and not HSCAL in val[0] and not SNR in val[0]) or (not SCAL in val[0] and HSCAL in val[0] and not SNR in val[0]) or (not SCAL in val[0] and not HSCAL in val[0] and SNR in val[0]))
                     ]
@@ -266,7 +326,7 @@ def main():
 
     #################_Define_run_tests_parameters_#################
     #Generate layer combi
-    combi = [(bl[0],el[0],) for el in single_layer_EL_param for bl in single_layer_BL_param if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0])) and ((THRD in bl[0]) == (THRD in el[0]))] #(SCALED in bl[0] or HSCALED in bl[0] or SNR in el[0]) ]
+    combi = [(bl[0],el[0],) for el in single_layer_EL_param for bl in single_layer_BL_param ]#if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0])) and ((THRD in bl[0]) == (THRD in el[0]))] #(SCALED in bl[0] or HSCALED in bl[0] or SNR in el[0]) ]
     if plus_shm:
         combi += [(bl[0],el[0],) for el in shm_EL_param for bl in shm_BL_param if (((SCALED in bl[0] or HSCALED in bl[0]) and not (SNR in el[0])) or (not (SCALED in bl[0] or HSCALED in bl[0]) and SNR in el[0]))]
 
@@ -279,7 +339,9 @@ def main():
                   for name in [(val[0],) for val in single_layer_BL_param] + [(val[0],) for val in single_layer_EL_param] + [(val[0],) for val in two_layer_param] + combi}
     runTests(tests, outname,
              layers=layers,
-             layer_combi=combi)
+             layer_combi=combi,
+             input_res = True,
+             )
 
 
     
