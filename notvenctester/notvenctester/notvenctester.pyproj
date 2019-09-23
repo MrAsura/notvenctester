@@ -31,6 +31,9 @@
     <Compile Include="skvzTestInstance.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SummaryFactory.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TestInstance.py" />
     <Compile Include="TestSuite.py">
       <SubType>Code</SubType>
@@ -56,10 +59,19 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test1.py" />
+    <Compile Include="tests\test_new_functionality.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tests\tmvp_merge_idx_test.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\__main__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TestUtils.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="__init__.py">
@@ -71,10 +83,7 @@
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
-    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
-  <Import Condition="Exists($(PtvsTargetsFile))" Project="$(PtvsTargetsFile)" />
-  <Import Condition="!Exists($(PtvsTargetsFile))" Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
        Visual Studio and specify your pre- and post-build commands in
        the BeforeBuild and AfterBuild targets below. -->
@@ -83,4 +92,5 @@
   </Target>
   <Target Name="AfterBuild">
   </Target>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>

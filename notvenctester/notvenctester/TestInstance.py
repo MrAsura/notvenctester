@@ -18,10 +18,13 @@ class TestInstance(abc.ABC):
     @param qps: Qp values for which the test is run
     @param test_name: A name for the test instance
     @param out_name: Name for the output files
+    @param bin_name: Specify the binary used for encoding
+    @param version: Specify binary version
+    @param misc: Optional parameters for inherited classes to implement encoder specific parameters 
     @return self object
     """
     @abc.abstractmethod
-    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\\out", bin_name="", version=0):
+    def __init__(self, test_name, inputs, input_sizes=[()], input_names=[()], layer_args=(), layer_sizes=[()], input_layer_scales=(), qps=(22, 27, 32, 37), out_name=r"out\\out", bin_name="", version=0, **misc):
         self._results = {}
         pass
 

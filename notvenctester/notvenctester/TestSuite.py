@@ -767,8 +767,8 @@ def __writeSheet(sheet,data,scale,qp_names,order=None):
 Write results to workbook. Assume wb has a Summary and Result Sheet.
 """
 def __writeResults(wb,results,layers={},s2_base=None):
-    s_sheet = wb.get_sheet_by_name('Summary')
-    s2_sheet = wb.get_sheet_by_name('Summary2')
+    s_sheet = wb['Summary']
+    s2_sheet = wb['Summary2']
     res_pos = {}
     
     # Write test results
@@ -780,7 +780,7 @@ def __writeResults(wb,results,layers={},s2_base=None):
     #write summary sheet
     __writeSummary(s_sheet,res_pos,res[__INAMES])
     __writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
-    wb.active = wb.get_index(s_sheet)
+    wb.active = wb.index(s_sheet)
 
 """
 Run given tests and write results to a exel file

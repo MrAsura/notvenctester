@@ -25,7 +25,10 @@ class shmTestInstance(TestInstance):
     __CFG = r"-c"
     __BIN = r"-b"
     __INPUT = r"-i{lid}"
+    __WIDTH = r"-wdt{lid}"
+    __HEIGHT = r"-hgt{lid}"
     __QP = r"-q{lid}"
+
 
     __sum_regex = r"SUMMARY\s-{56}\s"
     __i_slice_regex = r"I Slices\s*-{56}\s"
@@ -37,7 +40,7 @@ class shmTestInstance(TestInstance):
     __FS = r"file size"
     __ERR = r"errors"
     
-    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'', bin_name = cfg.shm_bin, version=0):
+    def __init__(self, test_name, configs, inputs = None, input_sizes = [()], input_names = None, layer_args = (), layer_sizes = [()], input_layer_scales = (), qps = (22, 27, 32, 37), out_name = r'', bin_name = cfg.shm_bin, version=0, **misc):
 
         self._configs = configs
         self._inputs = inputs
@@ -45,22 +48,47 @@ class shmTestInstance(TestInstance):
         self._layer_args = layer_args
 
         self._bin_name = bin_name
+        self._version = version
 
         self._results = {}
         self._test_name = test_name
 
-        self._input_layer_scales = tuple([1 for i in range(len(configs[0])-1)])
+        self._input_layer_scales = input_layer_scales #tuple([1 for i in range(len(configs[0])-1)])
+        self._input_sizes = input_sizes
 
         # Check that if input_names is given, it is the same length as configs. Both inputs and input_names must not be None
         if (input_names is not None and len(input_names) != len(configs)) or (inputs is not None and len(inputs) != len(configs)) or (input_names is None and inputs is None) :
             raise ValueError("Invalid input_names/inputs parameter given")
 
         self._input_names = {}
-        for (conf,seq,name) in it.zip_longest(configs,inputs,input_names,fillvalue=None):
+
+        if input_layer_scales:
+            round2 = lambda x,base=2: int(base*round(x/base))
+            strscale = lambda size,scale: tuple(map(lambda x: str(round2(int(x)*scale)),re.search("_*(\d+)x(\d+)[_.]*",size).group(1,2)))
+            self._layer_sizes = []
+            for (input_set,input_set_sizes) in it.zip_longest(inputs,input_sizes,fillvalue=tuple()):
+                insizes = input_set_sizes
+                fval = 1
+                if not input_set_sizes:
+                    #Get sizes from the given inputs
+                    insizes = input_set
+                    fval = input_set[-1] if len(input_set) < len(input_layer_scales) else 1
+                else:
+                    fval =  input_set_sizes[-1] if len(input_set) < len(input_layer_scales) else 1
+                self._layer_sizes.append( tuple( strscale(size,scale) for (scale,size) in it.zip_longest(input_layer_scales,insizes,fillvalue = fval) ) )
+
+        if len(inputs) != len(self._input_sizes) and input_sizes[0] is not None:
+            raise ValueError("inputs and input_sizes should be the same size")
+        if len(inputs) != len(self._layer_sizes) and layer_sizes[0] is not None:
+            raise ValueError("inputs and layer sizes must be the same size")
+        if input_names[0] is not None and len(inputs) != len(input_names):
+            raise ValueError("input and input_names need to be the same length")
+
+        for (conf,seq,size,name) in it.zip_longest(configs,inputs,self._layer_sizes,input_names,fillvalue=None):
             if name is not None:
-                self._input_names[name] = (conf,seq)
+                self._input_names[name] = (conf,seq,size)
             else:
-                self._input_names[str(seq)] = (conf,seq)
+                self._input_names[str(seq)] = (conf,seq,size)
 
         self._input_names_order = input_names
 
@@ -86,13 +114,15 @@ class shmTestInstance(TestInstance):
             hasher.update(str(val).encode())
         hasher.update(str(self._qps).encode())
         hasher.update(str(self._layer_args).encode())
+        hasher.update(str(self._input_layer_scales).encode())
+        hasher.update(str(self._input_sizes).encode())
         return hasher.hexdigest()
 
 
     def _run_tests(self):
         runs = {}
         # Build commands
-        for (name,(confs,seq)) in self._input_names.items():
+        for (name,(confs,seq,sizes)) in self._input_names.items():
             runs[name] = {}
             for lqp in self._qps:
                 if not hasattr(lqp,"__iter__"):
@@ -105,8 +135,11 @@ class shmTestInstance(TestInstance):
                 outlog = outfile + r".log"
                 cmd.extend([self.__BIN, outfile])
                 if seq is not None:
-                    for (lid,qp) in it.zip_longest(range(len(seq)),lqp,fillvalue=None):
+                    for (lid,qp,size) in it.zip_longest(range(len(seq)),lqp,sizes,fillvalue=None):
                         cmd.extend([self.__INPUT.format(lid=lid),seq[lid]])
+                        if size is not None:
+                            cmd.extend([self.__WIDTH.format(lid=lid),size[0]])
+                            cmd.extend([self.__HEIGHT.format(lid=lid),size[1]])
                         if qp is not None:
                             cmd.extend([self.__QP.format(lid=lid),str(qp)])
                         else:

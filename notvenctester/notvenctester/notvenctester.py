@@ -2,12 +2,13 @@
 Test suite for testing SHVC kvazaar
 """
 
-from tests import main
+#from tests import main
 
 if __name__ == "__main__":
-    print("Start tests...")
-    main.runTests()
-    print("Tests finished.")
+ #   print("Start tests...")
+ #   main.runTests()
+ #   print("Tests finished.")
+    import tests.__main__
 
     """
     seqs = [(r"hevc-B\Kimono1_1920x1080_24.yuv",),

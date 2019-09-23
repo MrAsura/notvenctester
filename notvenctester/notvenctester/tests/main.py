@@ -9,6 +9,7 @@ import skvz_battery
 import tmvp_merge_idx_test
 import skvz_paper_tests
 import perf_test
+import test_new_functionality
 
 #test_list = [tmvp_merge_idx_test.main]
 #test_list = [skvz_battery.main]
@@ -19,7 +20,8 @@ import perf_test
              #scal_test.main]#,
              #preset_scal_test.main,
              #shm_test1.main]
-test_list = [perf_test.main]
+#test_list = [perf_test.main]
+test_list = [test_new_functionality]
 
 def runTests():
     for test in test_list:
