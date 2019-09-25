@@ -4,8 +4,9 @@ Test new functionality
 
 import cfg
 from TestSuite import runTests
-from TestUtils import TestParameterGroup, transformerFactory
+from TestUtils import TestParameterGroup, transformerFactory, generate_combi, combiFactory
 import re
+import operator as op
 
 def main():
     seqs = cfg.sequences[cfg.hevc_A] + cfg.sequences[cfg.hevc_B]
@@ -20,7 +21,6 @@ def main():
     tpg_scal = TestParameterGroup()
     tpg_scal.add_const_param(version = ver,
                              bin_name = cfg.skvz_ver_bin.format(ver),
-                             test_name = "",
                              input_names = in_names,
                              layer_args = shared_param)\
              .add_param_set(_thrd = thread_range,
@@ -54,7 +54,9 @@ def main():
 
     #Run tests
     tests = tpg_scal.to_skvz_test_instance() + tpg_sim.to_skvz_test_instance()
-    combi = []
+    combi = generate_combi(tpg_sim, combi_cond = combiFactory(_thrd = op.eq,
+                                                              _owf = op.eq,
+                                                              _layer = lambda p1, p2: 0 if p1 == p2 else (-1 if p1 == "BL" else 1)))
     layers = []
 
     runTests(tests, outname, layer_combi=combi, layers=layers)

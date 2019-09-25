@@ -7,20 +7,33 @@ import openpyxl as xl
 #Define summary names used as keys f in definitions
 sn_BDBRM = "BDBRMatrix"
 
+#Define definition templates for each summary type
+
+"""
+__LAYERS:{<LayerCombiName>:<tuple of layers to include>}
+"""
+__LAYERS = "layers"
+__WRITE_BITS = "write_bits"
+__WRITE_BDBR = "write_bdbr"
+__WRITE_PSRN = "write_psrn"
+__WRITE_TIME = "write_time"
+dt_BDBRM = {__LAYERS:{}, __WRITE_BDBR: True, __WRITE_BITS: True, __WRITE_PSRN: True, __WRITE_TIME: True}
+
 """
 Function for creating summary sheets to the given workbook for the given data
 @param wb: work book where sheets will be added
-@param data_refs: references to the data sheets and data cell positions used for the summary
+@param data_refs: references to the data sheets and data cell positions used for the summary in the form data_refs[<test_name>][<seq>][<lid>] = {__KB, __KBS,__PSNR, __TIME}
 @param BDBRMatrix: dict containing the parameters for the BDBRMatrix summary type
 """
-def makeSummaries(wb, data_refs, *, **definitions):
+def makeSummaries(wb, data_refs, **definitions):
     if sn_BDBRM in definitions:
         makeBDBRMatrix(wb, data_refs, definitions[sn_BDBRM])
 
 
 def makeBDBRMatrix(wb, data_refs, definition):
     bdbrm_sheet = wb.create_sheet(sn_BDBRM)
-    __writeBDBRMatrix(bdbrm_sheet, data_refs, **definitions)
+    reduced_refs = __makeSummary(data_refs, definitions[__LAYERS])
+    __writeBDBRMatrix(bdbrm_sheet, reduced_refs, **definitions)
 
 
 #######################################
@@ -36,6 +49,37 @@ __S_BIT_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
 __S_TIME_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
 __S_PSNR_FORMAT = "=AVERAGE({},{},{},{})-AVERAGE({},{},{},{})"
 __S_HEADER = "Result summary matrix (bdrate, bit, PSNR, Time comparisons)"
+
+
+"""
+Transform res_pos into summary test structure removing items not used in the summary
+@return dict of the form res[<test_name>][<seq>] = {__KB, __KBS,__PSNR, __TIME}
+"""
+def __makeSummary(res_pos,layers={}):
+    from TestSuite import _LID_TOT
+    res = {}
+    for (test,item) in res_pos.items():
+        res[test] = {}
+        for (seq,vals) in item.items():
+            test_in_layers = test in layers
+            if not test_in_layers:
+                res[test][seq] = vals[LID_TOT]
+                if len(vals.keys()) <= 2: #If only 2 lids, it should mean the total layer and other layer are the same
+                    continue
+            for (lid,val) in vals.items():
+                if lid == LID_TOT and not test_in_layers:
+                    continue
+                if test_in_layers and lid not in layers[test]:
+                    continue
+                nn = makeSheetLayer(test,lid)
+                if lid == LID_TOT or len(vals.keys()) <= 2:
+                    nn = test
+                if nn in res:
+                    res[nn][seq] = val
+                else:
+                    res[nn] = {seq:val}
+
+    return res
 
 """
 Handle writing the BDBRMatrix summary sheet
@@ -125,6 +169,7 @@ def __writeSummaryMatrixHeader(sheet, tests, row, col):
 Write summary matrix data for bdrate
 """
 def __writeBDSummaryMatrix(sheet, data, row, col):
+    from TestSuite import _PSNR
     test_col = col - 1
     test_row = row - 1
     final_r = row+len(data.keys())
@@ -136,8 +181,8 @@ def __writeBDSummaryMatrix(sheet, data, row, col):
             if t1 == t2:
                 sheet.cell(row = r, column = c).value = "-"
             else:
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KBS] + data[t1][__PSNR]]
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KBS] + data[t2][__PSNR]]
+                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][_KBS] + data[t1][_PSNR]]
+                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][_KBS] + data[t2][_PSNR]]
                 sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(r1+r2))
                 sheet.cell(row = r, column = c).style = 'Percent'
                 sheet.cell(row = r, column = c).number_format = '0.00%'
@@ -154,6 +199,7 @@ def __writeBDSummaryMatrix(sheet, data, row, col):
 Write bit size summary matrix
 """
 def __writeBSummaryMatrix(sheet, data, row, col):
+    from TestSuite import _KB
     test_col = col - 1
     test_row = row - 1
     final_r = row+len(data.keys())
@@ -165,8 +211,8 @@ def __writeBSummaryMatrix(sheet, data, row, col):
             if t1 == t2:
                 sheet.cell(row = r, column = c).value = "-"
             else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KB]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KB]]
+                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][_KB]]
+                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][_KB]]
                 sheet.cell(row = r, column = c).value = __S_BIT_FORMAT.format(*(r1+r2))
                 sheet.cell(row = r, column = c).style = 'Percent'
             sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
@@ -181,6 +227,7 @@ def __writeBSummaryMatrix(sheet, data, row, col):
 Write time summary matrix
 """
 def __writeTimeSummaryMatrix(sheet, data, row, col):
+    from TestSuite import _TIME
     test_col = col - 1
     test_row = row - 1
     final_r = row+len(data.keys())
@@ -192,8 +239,8 @@ def __writeTimeSummaryMatrix(sheet, data, row, col):
             if t1 == t2:
                 sheet.cell(row = r, column = c).value = "-"
             else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__TIME]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__TIME]]
+                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][_TIME]]
+                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][_TIME]]
                 sheet.cell(row = r, column = c).value = __S_TIME_FORMAT.format(*(r1+r2))
                 sheet.cell(row = r, column = c).style = 'Percent'
             sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
@@ -208,6 +255,7 @@ def __writeTimeSummaryMatrix(sheet, data, row, col):
 Write psnr summary matrix
 """
 def __writePSNRSummaryMatrix(sheet, data, row, col):
+    from TestSuite import _PSNR
     test_col = col - 1
     test_row = row - 1
     final_r = row+len(data.keys())
@@ -219,8 +267,8 @@ def __writePSNRSummaryMatrix(sheet, data, row, col):
             if t1 == t2:
                 sheet.cell(row = r, column = c).value = 0#"-"
             else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__PSNR]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__PSNR]]
+                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][_PSNR]]
+                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][_PSNR]]
                 sheet.cell(row = r, column = c).value = __S_PSNR_FORMAT.format(*(r1+r2))
             sheet.cell(row = r, column = c).style = 'Comma'
             sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')

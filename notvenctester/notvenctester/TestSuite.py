@@ -9,15 +9,17 @@ from openpyxl.formatting.rule import ColorScaleRule
 import cfg
 import ast
 
+from SummaryFactory import makeSummaries
+
 __FILE_END = r".xlsm"
-__KBS = r"kbs"
-__KB = r"kb"
-__TIME = r"time"
-__PSNR = r"psnr"
-__SCALE = r"scale"
-__RES = r"results"
-__QPS = r"qps"
-__INAMES = r"inames"
+_KBS = r"kbs"
+_KB = r"kb"
+_TIME = r"time"
+_PSNR = r"psnr"
+_SCALE = r"scale"
+_RES = r"results"
+_QPS = r"qps"
+_INAMES = r"inames"
 
 #__res_regex = r"\sProcessed\s(\d+)\sframes\sover\s(\d+)\slayer\(s\),\s*(\d+)\sbits\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
 #__lres_regex_format = r"\s\sLayer\s{lid}:\s*(\d+)\sbits,\sAVG\sPSNR:\s(\d+[.,]\d+)\s(\d+[.,]\d+)\s(\d+[.,]\d+)"
@@ -35,21 +37,21 @@ __PSNR_AVG = "=(6*{y}+{u}+{v})/8"
 __C_AVG = r"=AVERAGE({})"
 __SEQ_AVERAGE = r"Average"
 
-__S_SEQ_HEADER = "Sequence {} results"
-__S_BIT_HEADER = r"Bit comparisons"
-__S_PSNR_HEADER = r"PSNR comparisons (dB)"
-__S_TIME_HEADER = r"Encoding time comparisons"
-__S_BDRATE_FORMAT = "=bdrate({},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{})"
-__S_BIT_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
-__S_TIME_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
-__S_PSNR_FORMAT = "=AVERAGE({},{},{},{})-AVERAGE({},{},{},{})"
-__S_HEADER = "Result summary matrix (bdrate, bit, PSNR, Time comparisons)"
+#__S_SEQ_HEADER = "Sequence {} results"
+#__S_BIT_HEADER = r"Bit comparisons"
+#__S_PSNR_HEADER = r"PSNR comparisons (dB)"
+#__S_TIME_HEADER = r"Encoding time comparisons"
+#__S_BDRATE_FORMAT = "=bdrate({},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{})"
+#__S_BIT_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
+#__S_TIME_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
+#__S_PSNR_FORMAT = "=AVERAGE({},{},{},{})-AVERAGE({},{},{},{})"
+#__S_HEADER = "Result summary matrix (bdrate, bit, PSNR, Time comparisons)"
 
-__S2_HEADER = "Result summary list"
+#__S2_HEADER = "Result summary list"
 
-__SR_FORMAT = r"'{sheet}'!{cell}"
+#__SR_FORMAT = r"'{sheet}'!{cell}"
 
-__LID_TOT = -1
+_LID_TOT = -1
 
 __LAYER2TEST_SEP = r"_layer"
 __LAYER2TEST_FORMAT = r"{test}"+ __LAYER2TEST_SEP + "{lid}"
@@ -167,10 +169,10 @@ def __resBuildFunc(results,seq,qp,lid,kbs,kb,time,psnr):
     if not lid in results[seq][qp]:
         results[seq][qp][lid] = {}
 
-    results[seq][qp][lid][__KBS] = kbs
-    results[seq][qp][lid][__KB] = kb
-    results[seq][qp][lid][__TIME] = time
-    results[seq][qp][lid][__PSNR] = psnr
+    results[seq][qp][lid][_KBS] = kbs
+    results[seq][qp][lid][_KB] = kb
+    results[seq][qp][lid][_TIME] = time
+    results[seq][qp][lid][_PSNR] = psnr
 
 """
 Sort results qps and put them to ascending order by replacing them with order numbers
@@ -192,14 +194,14 @@ def __sortQps(res):
 
 """
 Parse test results
-@return a dict with parsed results
+@return a dict with parsed results in the form of result[<test_name>] = {__RES: {<seq>: {<qp>: <lid>:{__KBS,__KB,__TIME,__PSNR}}}, __SCALE, __QPS, __INAMES }
 """
 def __parseTestResults(tests):
     results = {}
     for test in tests:
-        main_res = test.getResults(__resBuildFunc,l_tot=__LID_TOT)
+        main_res = test.getResults(__resBuildFunc,l_tot=_LID_TOT)
         (main_res,qp_names) = __sortQps(main_res)
-        results[test._test_name] = {__RES: main_res, __SCALE: str(test._input_layer_scales), __QPS: qp_names, __INAMES: [__SEQ_AVERAGE,] + test.getInputNames()}
+        results[test._test_name] = {_RES: main_res, _SCALE: str(test._input_layer_scales), _QPS: qp_names, _INAMES: [__SEQ_AVERAGE,] + test.getInputNames()}
     return results
 
 """
@@ -207,35 +209,35 @@ Combine psnr and kbs values
 """
 def __combiValues(vals):
    
-    res = {__RES:{},__SCALE:'',__QPS:{}, __INAMES:vals[0][__INAMES]}
+    res = {_RES:{},_SCALE:'',_QPS:{}, _INAMES:vals[0][_INAMES]}
     #Init structure
-    for (seq,qps) in vals[0][__RES].items():
-        res[__RES][seq] = {}
-        res[__QPS][seq] = {}
+    for (seq,qps) in vals[0][_RES].items():
+        res[_RES][seq] = {}
+        res[_QPS][seq] = {}
         for (qp,lids) in qps.items():
-            res[__RES][seq][qp] = {}
-            res[__QPS][seq][qp] = ""
+            res[_RES][seq][qp] = {}
+            res[_QPS][seq][qp] = ""
             for (lid,val) in lids.items():
-                res[__RES][seq][qp][lid] = {}
-                res[__RES][seq][qp][lid][__KBS] = 0
-                res[__RES][seq][qp][lid][__KB] = 0
-                res[__RES][seq][qp][lid][__TIME] = 0
-                res[__RES][seq][qp][lid][__PSNR] = (0,0,0)
+                res[_RES][seq][qp][lid] = {}
+                res[_RES][seq][qp][lid][_KBS] = 0
+                res[_RES][seq][qp][lid][_KB] = 0
+                res[_RES][seq][qp][lid][_TIME] = 0
+                res[_RES][seq][qp][lid][_PSNR] = (0,0,0)
 
     numv = len(vals)
 
     scales = []
     for item in vals:
-        scales.append(item[__SCALE])
-        for (seq,qps) in item[__RES].items():
+        scales.append(item[_SCALE])
+        for (seq,qps) in item[_RES].items():
             for (qp,lids) in qps.items():
                 for (lid,val) in lids.items():
-                    res[__RES][seq][qp][lid][__KBS] += val[__KBS]
-                    res[__RES][seq][qp][lid][__KB] += val[__KB]
-                    res[__RES][seq][qp][lid][__TIME] += val[__TIME]
-                    res[__RES][seq][qp][lid][__PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[__PSNR], res[__RES][seq][qp][lid][__PSNR]))
-                res[__QPS][seq][qp] = makeCombiName([res[__QPS][seq][qp],item[__QPS][seq][qp]]) if len(res[__QPS][seq][qp]) > 0 else item[__QPS][seq][qp]
-    res[__SCALE] = makeCombiName(scales)
+                    res[_RES][seq][qp][lid][_KBS] += val[_KBS]
+                    res[_RES][seq][qp][lid][_KB] += val[_KB]
+                    res[_RES][seq][qp][lid][_TIME] += val[_TIME]
+                    res[_RES][seq][qp][lid][_PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[_PSNR], res[_RES][seq][qp][lid][_PSNR]))
+                res[_QPS][seq][qp] = makeCombiName([res[_QPS][seq][qp],item[_QPS][seq][qp]]) if len(res[_QPS][seq][qp]) > 0 else item[_QPS][seq][qp]
+    res[_SCALE] = makeCombiName(scales)
         
     return res
 
@@ -244,47 +246,47 @@ Combine psnr and kbs values in a layered fashion
 """
 def __layerCombiValues(vals):
    
-    res = {__RES:{},__SCALE:'',__QPS:{}, __INAMES:vals[0][__INAMES]}
+    res = {_RES:{},_SCALE:'',_QPS:{}, _INAMES:vals[0][_INAMES]}
     #Init structure
-    for (seq,qps) in vals[0][__RES].items():
-        res[__RES][seq] = {}
-        res[__QPS][seq] = {}
+    for (seq,qps) in vals[0][_RES].items():
+        res[_RES][seq] = {}
+        res[_QPS][seq] = {}
         for qp in qps.keys():
-            res[__RES][seq][qp] = {}
-            res[__QPS][seq][qp] = "()"
+            res[_RES][seq][qp] = {}
+            res[_QPS][seq][qp] = "()"
             for lid in range(len(vals)):
-                res[__RES][seq][qp][lid] = {}
-                res[__RES][seq][qp][lid][__KBS] = 0
-                res[__RES][seq][qp][lid][__KB] = 0
-                res[__RES][seq][qp][lid][__TIME] = 0
-                res[__RES][seq][qp][lid][__PSNR] = (0,0,0)
-            res[__RES][seq][qp][__LID_TOT] = {}
-            res[__RES][seq][qp][__LID_TOT][__KBS] = 0
-            res[__RES][seq][qp][__LID_TOT][__KB] = 0
-            res[__RES][seq][qp][__LID_TOT][__TIME] = 0
-            res[__RES][seq][qp][__LID_TOT][__PSNR] = (0,0,0)
+                res[_RES][seq][qp][lid] = {}
+                res[_RES][seq][qp][lid][_KBS] = 0
+                res[_RES][seq][qp][lid][_KB] = 0
+                res[_RES][seq][qp][lid][_TIME] = 0
+                res[_RES][seq][qp][lid][_PSNR] = (0,0,0)
+            res[_RES][seq][qp][_LID_TOT] = {}
+            res[_RES][seq][qp][_LID_TOT][_KBS] = 0
+            res[_RES][seq][qp][_LID_TOT][_KB] = 0
+            res[_RES][seq][qp][_LID_TOT][_TIME] = 0
+            res[_RES][seq][qp][_LID_TOT][_PSNR] = (0,0,0)
 
     numv = len(vals)
 
     scales = []
     for item in vals:
-        scales.append(item[__SCALE])
+        scales.append(item[_SCALE])
 
-    for (seq,qps) in res[__RES].items():
+    for (seq,qps) in res[_RES].items():
         for (qp,lids) in qps.items():
             for (lid,val) in zip(range(numv),vals):
-                lids[lid][__KBS] = val[__RES][seq][qp][__LID_TOT][__KBS]
-                lids[lid][__KB] = val[__RES][seq][qp][__LID_TOT][__KB]
-                lids[lid][__TIME] = val[__RES][seq][qp][__LID_TOT][__TIME]
-                lids[lid][__PSNR] = val[__RES][seq][qp][__LID_TOT][__PSNR]
-                lids[__LID_TOT][__KBS] += val[__RES][seq][qp][__LID_TOT][__KBS]#/numv #Take the average
-                lids[__LID_TOT][__KB] += val[__RES][seq][qp][__LID_TOT][__KB]
-                lids[__LID_TOT][__TIME] += val[__RES][seq][qp][__LID_TOT][__TIME]
-                lids[__LID_TOT][__PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[__RES][seq][qp][__LID_TOT][__PSNR], lids[__LID_TOT][__PSNR]))
+                lids[lid][_KBS] = val[_RES][seq][qp][_LID_TOT][_KBS]
+                lids[lid][_KB] = val[_RES][seq][qp][_LID_TOT][_KB]
+                lids[lid][_TIME] = val[_RES][seq][qp][_LID_TOT][_TIME]
+                lids[lid][_PSNR] = val[_RES][seq][qp][_LID_TOT][_PSNR]
+                lids[_LID_TOT][_KBS] += val[_RES][seq][qp][_LID_TOT][_KBS]#/numv #Take the average
+                lids[_LID_TOT][_KB] += val[_RES][seq][qp][_LID_TOT][_KB]
+                lids[_LID_TOT][_TIME] += val[_RES][seq][qp][_LID_TOT][_TIME]
+                lids[_LID_TOT][_PSNR] = tuple(map(lambda x,y: float(y) + float(x)/float(numv), val[_RES][seq][qp][_LID_TOT][_PSNR], lids[_LID_TOT][_PSNR]))
 
-                res[__QPS][seq][qp] = str( ast.literal_eval(res[__QPS][seq][qp]) + ast.literal_eval(val[__QPS][seq][qp]) )
+                res[_QPS][seq][qp] = str( ast.literal_eval(res[_QPS][seq][qp]) + ast.literal_eval(val[_QPS][seq][qp]) )
 
-    res[__SCALE] = makeLayerCombiName(scales)
+    res[_SCALE] = makeLayerCombiName(scales)
         
     return res
 
@@ -317,311 +319,311 @@ def __combiTestResults(results, combi, layer_combi):
 Write summary base header
 @return row and col of start of data field
 """
-def __writeSummaryMatrixHeader(sheet, tests, row, col):
-    d_row = row + 1
-    d_col = col + 1
-    #Write horizontal headers/test names
-    tmp_col = col + 1
-    for test in tests:
-        sheet.cell(row = row, column = tmp_col).value = test
-        tmp_col += 1
+#def __writeSummaryMatrixHeader(sheet, tests, row, col):
+#    d_row = row + 1
+#    d_col = col + 1
+#    #Write horizontal headers/test names
+#    tmp_col = col + 1
+#    for test in tests:
+#        sheet.cell(row = row, column = tmp_col).value = test
+#        tmp_col += 1
 
-    #Write vertical 
-    tmp_row = row + 1
-    for test in tests:
-        sheet.cell(row = tmp_row, column = col).value = test
-        tmp_row += 1
+#    #Write vertical 
+#    tmp_row = row + 1
+#    for test in tests:
+#        sheet.cell(row = tmp_row, column = col).value = test
+#        tmp_row += 1
 
-    return d_row, d_col
+#    return d_row, d_col
 
 """
 Write summary matrix data for bdrate
 """
-def __writeBDSummaryMatrix(sheet, data, row, col):
-    test_col = col - 1
-    test_row = row - 1
-    final_r = row+len(data.keys())
-    final_c = col+len(data.keys())
-    for r in range(row,row+len(data.keys())):
-        for c in range(col,col+len(data.keys())):
-            t2 = sheet.cell(row = r, column = test_col).value
-            t1 = sheet.cell(row = test_row, column = c).value
-            if t1 == t2:
-                sheet.cell(row = r, column = c).value = "-"
-            else:
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KBS] + data[t1][__PSNR]]
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KBS] + data[t2][__PSNR]]
-                sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(r1+r2))
-                sheet.cell(row = r, column = c).style = 'Percent'
-                sheet.cell(row = r, column = c).number_format = '0.00%'
-            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
-    # Set conditional coloring
-    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
-    sheet.conditional_formatting.add(form_range,
-                                     ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
-                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
-                                                    end_type='percentile', end_value=10, end_color='F8696B' ))
+#def __writeBDSummaryMatrix(sheet, data, row, col):
+#    test_col = col - 1
+#    test_row = row - 1
+#    final_r = row+len(data.keys())
+#    final_c = col+len(data.keys())
+#    for r in range(row,row+len(data.keys())):
+#        for c in range(col,col+len(data.keys())):
+#            t2 = sheet.cell(row = r, column = test_col).value
+#            t1 = sheet.cell(row = test_row, column = c).value
+#            if t1 == t2:
+#                sheet.cell(row = r, column = c).value = "-"
+#            else:
+#                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KBS] + data[t1][__PSNR]]
+#                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KBS] + data[t2][__PSNR]]
+#                sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(r1+r2))
+#                sheet.cell(row = r, column = c).style = 'Percent'
+#                sheet.cell(row = r, column = c).number_format = '0.00%'
+#            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+#    # Set conditional coloring
+#    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+#    sheet.conditional_formatting.add(form_range,
+#                                     ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
+#                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
+#                                                    end_type='percentile', end_value=10, end_color='F8696B' ))
 
 
 """
 Write bit size summary matrix
 """
-def __writeBSummaryMatrix(sheet, data, row, col):
-    test_col = col - 1
-    test_row = row - 1
-    final_r = row+len(data.keys())
-    final_c = col+len(data.keys())
-    for r in range(row,row+len(data.keys())):
-        for c in range(col,col+len(data.keys())):
-            t2 = sheet.cell(row = r, column = test_col).value
-            t1 = sheet.cell(row = test_row, column = c).value
-            if t1 == t2:
-                sheet.cell(row = r, column = c).value = "-"
-            else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KB]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KB]]
-                sheet.cell(row = r, column = c).value = __S_BIT_FORMAT.format(*(r1+r2))
-                sheet.cell(row = r, column = c).style = 'Percent'
-            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
-    # Set conditional coloring
-    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
-    sheet.conditional_formatting.add(form_range,
-                                     ColorScaleRule(start_type='min', start_color='4F81BD',
-                                                    mid_type='num', mid_value=1, mid_color='FFFFFF',
-                                                    end_type='percentile', end_value=80, end_color='F8696B' ))
+#def __writeBSummaryMatrix(sheet, data, row, col):
+#    test_col = col - 1
+#    test_row = row - 1
+#    final_r = row+len(data.keys())
+#    final_c = col+len(data.keys())
+#    for r in range(row,row+len(data.keys())):
+#        for c in range(col,col+len(data.keys())):
+#            t2 = sheet.cell(row = r, column = test_col).value
+#            t1 = sheet.cell(row = test_row, column = c).value
+#            if t1 == t2:
+#                sheet.cell(row = r, column = c).value = "-"
+#            else:
+#                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__KB]]
+#                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__KB]]
+#                sheet.cell(row = r, column = c).value = __S_BIT_FORMAT.format(*(r1+r2))
+#                sheet.cell(row = r, column = c).style = 'Percent'
+#            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+#    # Set conditional coloring
+#    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+#    sheet.conditional_formatting.add(form_range,
+#                                     ColorScaleRule(start_type='min', start_color='4F81BD',
+#                                                    mid_type='num', mid_value=1, mid_color='FFFFFF',
+#                                                    end_type='percentile', end_value=80, end_color='F8696B' ))
 
 """
 Write time summary matrix
 """
-def __writeTimeSummaryMatrix(sheet, data, row, col):
-    test_col = col - 1
-    test_row = row - 1
-    final_r = row+len(data.keys())
-    final_c = col+len(data.keys())
-    for r in range(row,row+len(data.keys())):
-        for c in range(col,col+len(data.keys())):
-            t2 = sheet.cell(row = r, column = test_col).value
-            t1 = sheet.cell(row = test_row, column = c).value
-            if t1 == t2:
-                sheet.cell(row = r, column = c).value = "-"
-            else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__TIME]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__TIME]]
-                sheet.cell(row = r, column = c).value = __S_TIME_FORMAT.format(*(r1+r2))
-                sheet.cell(row = r, column = c).style = 'Percent'
-            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
-    # Set conditional coloring
-    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
-    sheet.conditional_formatting.add(form_range,
-                                     ColorScaleRule(start_type='min', start_color='9BDE55',#'63BE7B',
-                                                    mid_type='num', mid_value=1, mid_color='FFFFFF',
-                                                    end_type='percentile', end_value=80, end_color='00BBEF'))#'4F81BD' ))
+#def __writeTimeSummaryMatrix(sheet, data, row, col):
+#    test_col = col - 1
+#    test_row = row - 1
+#    final_r = row+len(data.keys())
+#    final_c = col+len(data.keys())
+#    for r in range(row,row+len(data.keys())):
+#        for c in range(col,col+len(data.keys())):
+#            t2 = sheet.cell(row = r, column = test_col).value
+#            t1 = sheet.cell(row = test_row, column = c).value
+#            if t1 == t2:
+#                sheet.cell(row = r, column = c).value = "-"
+#            else:
+#                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__TIME]]
+#                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__TIME]]
+#                sheet.cell(row = r, column = c).value = __S_TIME_FORMAT.format(*(r1+r2))
+#                sheet.cell(row = r, column = c).style = 'Percent'
+#            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+#    # Set conditional coloring
+#    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+#    sheet.conditional_formatting.add(form_range,
+#                                     ColorScaleRule(start_type='min', start_color='9BDE55',#'63BE7B',
+#                                                    mid_type='num', mid_value=1, mid_color='FFFFFF',
+#                                                    end_type='percentile', end_value=80, end_color='00BBEF'))#'4F81BD' ))
 
 """
 Write psnr summary matrix
 """
-def __writePSNRSummaryMatrix(sheet, data, row, col):
-    test_col = col - 1
-    test_row = row - 1
-    final_r = row+len(data.keys())
-    final_c = col+len(data.keys())
-    for r in range(row,row+len(data.keys())):
-        for c in range(col,col+len(data.keys())):
-            t2 = sheet.cell(row = r, column = test_col).value
-            t1 = sheet.cell(row = test_row, column = c).value
-            if t1 == t2:
-                sheet.cell(row = r, column = c).value = 0#"-"
-            else:
-                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__PSNR]]
-                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__PSNR]]
-                sheet.cell(row = r, column = c).value = __S_PSNR_FORMAT.format(*(r1+r2))
-            sheet.cell(row = r, column = c).style = 'Comma'
-            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
-    # Set conditional coloring
-    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
-    sheet.conditional_formatting.add(form_range,
-                                     ColorScaleRule(start_type='min', start_color='FF772A',
-                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
-                                                    end_type='max', end_color='9BDE55' ))
+#def __writePSNRSummaryMatrix(sheet, data, row, col):
+#    test_col = col - 1
+#    test_row = row - 1
+#    final_r = row+len(data.keys())
+#    final_c = col+len(data.keys())
+#    for r in range(row,row+len(data.keys())):
+#        for c in range(col,col+len(data.keys())):
+#            t2 = sheet.cell(row = r, column = test_col).value
+#            t1 = sheet.cell(row = test_row, column = c).value
+#            if t1 == t2:
+#                sheet.cell(row = r, column = c).value = 0#"-"
+#            else:
+#                r2 =[__SR_FORMAT.format(sheet=parseSheetLayer(t1)[0],cell=cl) for cl in data[t1][__PSNR]]
+#                r1 =[__SR_FORMAT.format(sheet=parseSheetLayer(t2)[0],cell=cl) for cl in data[t2][__PSNR]]
+#                sheet.cell(row = r, column = c).value = __S_PSNR_FORMAT.format(*(r1+r2))
+#            sheet.cell(row = r, column = c).style = 'Comma'
+#            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+#    # Set conditional coloring
+#    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+#    sheet.conditional_formatting.add(form_range,
+#                                     ColorScaleRule(start_type='min', start_color='FF772A',
+#                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
+#                                                    end_type='max', end_color='9BDE55' ))
 
 """
 Write summary sheet
 """
-def __writeSummary(sheet, ref_pos, order = None):
+#def __writeSummary(sheet, ref_pos, order = None):
 
-    seq_ref = {}
-    order = order if order else list(seq_ref.keys())
+#    seq_ref = {}
+#    order = order if order else list(seq_ref.keys())
 
-    # Init structure for each sequence
-    for (test,item) in ref_pos.items():
-        for seq in item.keys():
-            seq_ref[seq] = {}
-    # Populate
-    for (test,item) in ref_pos.items():
-        for (seq,val) in item.items():
-            seq_ref[seq][test] = val
-    #print(seq_ref)
-    # For each sequence generate the comparison matrix
-    sheet.cell(row = 1, column = 1).value = __S_HEADER 
-    #for (seq,ref) in sorted(seq_ref.items()):
-    for seq in order:
-        ref = seq_ref[seq]
-        tests = sorted(ref.keys())
+#    # Init structure for each sequence
+#    for (test,item) in ref_pos.items():
+#        for seq in item.keys():
+#            seq_ref[seq] = {}
+#    # Populate
+#    for (test,item) in ref_pos.items():
+#        for (seq,val) in item.items():
+#            seq_ref[seq][test] = val
+#    #print(seq_ref)
+#    # For each sequence generate the comparison matrix
+#    sheet.cell(row = 1, column = 1).value = __S_HEADER 
+#    #for (seq,ref) in sorted(seq_ref.items()):
+#    for seq in order:
+#        ref = seq_ref[seq]
+#        tests = sorted(ref.keys())
         
-        # write bdrate matrix
-        row = sheet.max_row + 2
-        brow = row
-        prow = row
-        trow = row
-        col = 1 #sheet.max_column + 1
-        sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq)
-        sheet.merge_cells(start_column=col,start_row=row,end_column=col+len(tests),end_row=row)
-        (row, col) = __writeSummaryMatrixHeader(sheet, tests, row+1, col)
-        __writeBDSummaryMatrix(sheet, ref, row, col)
+#        # write bdrate matrix
+#        row = sheet.max_row + 2
+#        brow = row
+#        prow = row
+#        trow = row
+#        col = 1 #sheet.max_column + 1
+#        sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq)
+#        sheet.merge_cells(start_column=col,start_row=row,end_column=col+len(tests),end_row=row)
+#        (row, col) = __writeSummaryMatrixHeader(sheet, tests, row+1, col)
+#        __writeBDSummaryMatrix(sheet, ref, row, col)
 
-        # write bit matrix
-        if 'bcol' not in locals():
-            bcol = sheet.max_column + 2
-        sheet.cell(row = brow, column = bcol).value = __S_BIT_HEADER
-        sheet.merge_cells(start_column=bcol,start_row=brow,end_column=bcol+len(tests),end_row=brow)
-        (brow, col) = __writeSummaryMatrixHeader(sheet, tests, brow+1, bcol)
-        __writeBSummaryMatrix(sheet, ref, brow, col)
+#        # write bit matrix
+#        if 'bcol' not in locals():
+#            bcol = sheet.max_column + 2
+#        sheet.cell(row = brow, column = bcol).value = __S_BIT_HEADER
+#        sheet.merge_cells(start_column=bcol,start_row=brow,end_column=bcol+len(tests),end_row=brow)
+#        (brow, col) = __writeSummaryMatrixHeader(sheet, tests, brow+1, bcol)
+#        __writeBSummaryMatrix(sheet, ref, brow, col)
 
-        # write psnr matrix
-        if 'pcol' not in locals():
-            pcol = sheet.max_column + 2
-        sheet.cell(row = prow, column = pcol).value = __S_PSNR_HEADER
-        sheet.merge_cells(start_column=pcol,start_row=prow,end_column=pcol+len(tests),end_row=prow)
-        (prow, col) = __writeSummaryMatrixHeader(sheet, tests, prow+1, pcol)
-        __writePSNRSummaryMatrix(sheet, ref, prow, col)
+#        # write psnr matrix
+#        if 'pcol' not in locals():
+#            pcol = sheet.max_column + 2
+#        sheet.cell(row = prow, column = pcol).value = __S_PSNR_HEADER
+#        sheet.merge_cells(start_column=pcol,start_row=prow,end_column=pcol+len(tests),end_row=prow)
+#        (prow, col) = __writeSummaryMatrixHeader(sheet, tests, prow+1, pcol)
+#        __writePSNRSummaryMatrix(sheet, ref, prow, col)
 
-        # write time matrix
-        if 'tcol' not in locals():
-            tcol = sheet.max_column + 2
-        sheet.cell(row = trow, column = tcol).value = __S_TIME_HEADER
-        sheet.merge_cells(start_column=tcol,start_row=trow,end_column=tcol+len(tests),end_row=trow)
-        (trow, col) = __writeSummaryMatrixHeader(sheet, tests, trow+1, tcol)
-        __writeTimeSummaryMatrix(sheet, ref, trow, col)
+#        # write time matrix
+#        if 'tcol' not in locals():
+#            tcol = sheet.max_column + 2
+#        sheet.cell(row = trow, column = tcol).value = __S_TIME_HEADER
+#        sheet.merge_cells(start_column=tcol,start_row=trow,end_column=tcol+len(tests),end_row=trow)
+#        (trow, col) = __writeSummaryMatrixHeader(sheet, tests, trow+1, tcol)
+#        __writeTimeSummaryMatrix(sheet, ref, trow, col)
 
-    # Make columns wider
-    for col in range(sheet.max_column):
-        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
+#    # Make columns wider
+#    for col in range(sheet.max_column):
+#        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
 
 """
 Write summary 2 list header
 """
-def __writeSummary2ListHeader(sheet, tests, seqs, base_test, row, col):
-    # Write the test names in the first rows
-    base_test_col = -1;
+#def __writeSummary2ListHeader(sheet, tests, seqs, base_test, row, col):
+#    # Write the test names in the first rows
+#    base_test_col = -1;
 
-    tmp_col = col + 1
-    for test in tests:
-        sheet.cell(row = row, column = tmp_col).value = test
-        if test == base_test:
-            base_test_col = tmp_col
-        tmp_col += 1
+#    tmp_col = col + 1
+#    for test in tests:
+#        sheet.cell(row = row, column = tmp_col).value = test
+#        if test == base_test:
+#            base_test_col = tmp_col
+#        tmp_col += 1
 
-    #Write vertical 
-    tmp_row = row + 1
-    for seq in seqs:
-        sheet.cell(row = tmp_row, column = col).value = seq
-        tmp_row += 1
+#    #Write vertical 
+#    tmp_row = row + 1
+#    for seq in seqs:
+#        sheet.cell(row = tmp_row, column = col).value = seq
+#        tmp_row += 1
 
-    return base_test_col
+#    return base_test_col
 
 """
 Write summary 2 list
 """
-def __writeSummary2List(sheet, data, base_test_col, row, col):
-    seq_col = col - 1
-    test_row = row - 1
-    final_r = row+len(data.keys())
-    final_c = col+len(tuple(data.values())[0].keys())
-    for r in range(row,final_r):
-        for c in range(col,final_c):
-            seq = sheet.cell(row = r, column = seq_col).value
-            test = sheet.cell(row = test_row, column = c).value
-            base_test = sheet.cell(row = test_row, column = base_test_col).value
-            #if t1 == t2:
-            #    sheet.cell(row = r, column = c).value = "-"
-            #else:
-            base =[__SR_FORMAT.format(sheet=parseSheetLayer(base_test)[0],cell=cl) for cl in data[seq][base_test][__KBS] + data[seq][base_test][__PSNR]]
-            comp =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data[seq][test][__KBS] + data[seq][test][__PSNR]]
-            sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(base + comp))
-            sheet.cell(row = r, column = c).style = 'Percent'
-            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
-    # Set conditional coloring
-    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
-    sheet.conditional_formatting.add(form_range,
-                                     ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
-                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
-                                                    end_type='percentile', end_value=10, end_color='F8696B' ))
+#def __writeSummary2List(sheet, data, base_test_col, row, col):
+#    seq_col = col - 1
+#    test_row = row - 1
+#    final_r = row+len(data.keys())
+#    final_c = col+len(tuple(data.values())[0].keys())
+#    for r in range(row,final_r):
+#        for c in range(col,final_c):
+#            seq = sheet.cell(row = r, column = seq_col).value
+#            test = sheet.cell(row = test_row, column = c).value
+#            base_test = sheet.cell(row = test_row, column = base_test_col).value
+#            #if t1 == t2:
+#            #    sheet.cell(row = r, column = c).value = "-"
+#            #else:
+#            base =[__SR_FORMAT.format(sheet=parseSheetLayer(base_test)[0],cell=cl) for cl in data[seq][base_test][__KBS] + data[seq][base_test][__PSNR]]
+#            comp =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data[seq][test][__KBS] + data[seq][test][__PSNR]]
+#            sheet.cell(row = r, column = c).value = __S_BDRATE_FORMAT.format(*(base + comp))
+#            sheet.cell(row = r, column = c).style = 'Percent'
+#            sheet.cell(row=r,column=c).alignment = xl.styles.Alignment(horizontal='center')
+#    # Set conditional coloring
+#    form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
+#    sheet.conditional_formatting.add(form_range,
+#                                     ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
+#                                                    mid_type='num', mid_value=0, mid_color='FFFFFF',
+#                                                    end_type='percentile', end_value=10, end_color='F8696B' ))
 
 
 """
 Write summary sheet 2
 Write a list type summary with one reference point
 """
-def __writeSummary2(sheet, ref_pos, base_test, order=None):
+#def __writeSummary2(sheet, ref_pos, base_test, order=None):
 
-    seq_ref = {}
+#    seq_ref = {}
 
-    # Init structure for each sequence
-    for (test,item) in ref_pos.items():
-        for seq in item.keys():
-            seq_ref[seq] = {}
-    # Populate
-    for (test,item) in ref_pos.items():
-        for (seq,val) in item.items():
-            seq_ref[seq][test] = val
-    #print(seq_ref)
+#    # Init structure for each sequence
+#    for (test,item) in ref_pos.items():
+#        for seq in item.keys():
+#            seq_ref[seq] = {}
+#    # Populate
+#    for (test,item) in ref_pos.items():
+#        for (seq,val) in item.items():
+#            seq_ref[seq][test] = val
+#    #print(seq_ref)
 
-    order = order if order else sorted(seq_ref.keys())
+#    order = order if order else sorted(seq_ref.keys())
 
-    # List Each sequence (rows) and tests (columns)
-    sheet.cell(row = 1, column = 1).value = __S2_HEADER
-    row = sheet.max_row + 2
-    col = 1
+#    # List Each sequence (rows) and tests (columns)
+#    sheet.cell(row = 1, column = 1).value = __S2_HEADER
+#    row = sheet.max_row + 2
+#    col = 1
 
-    base_test_col = __writeSummary2ListHeader(sheet, sorted(tuple(seq_ref.values())[0].keys()), order, base_test, row, col)
-    __writeSummary2List(sheet, seq_ref, base_test_col, row + 1, col + 1)
+#    base_test_col = __writeSummary2ListHeader(sheet, sorted(tuple(seq_ref.values())[0].keys()), order, base_test, row, col)
+#    __writeSummary2List(sheet, seq_ref, base_test_col, row + 1, col + 1)
    
 
-    # Make columns wider
-    for col in range(sheet.max_column):
-        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
+#    # Make columns wider
+#    for col in range(sheet.max_column):
+#        sheet.column_dimensions[get_column_letter(col+1)].width = getMaxLength(list(ref_pos.keys()))
 
 """
 Transform res_pos into summary test structure
 """
-def __makeSummary(res_pos,layers={}):
-    res = {}
-    for (test,item) in res_pos.items():
-        res[test] = {}
-        for (seq,vals) in item.items():
-            test_in_layers = test in layers
-            if not test_in_layers:
-                res[test][seq] = vals[__LID_TOT]
-                if len(vals.keys()) <= 2: #If only 2 lids, it should mean the total layer and other layer are the same
-                    continue
-            for (lid,val) in vals.items():
-                if lid == __LID_TOT and not test_in_layers:
-                    continue
-                if test_in_layers and lid not in layers[test]:
-                    continue
-                nn = makeSheetLayer(test,lid)
-                if lid == __LID_TOT or len(vals.keys()) <= 2:
-                    nn = test
-                if nn in res:
-                    res[nn][seq] = val
-                else:
-                    res[nn] = {seq:val}
+#def __makeSummary(res_pos,layers={}):
+#    res = {}
+#    for (test,item) in res_pos.items():
+#        res[test] = {}
+#        for (seq,vals) in item.items():
+#            test_in_layers = test in layers
+#            if not test_in_layers:
+#                res[test][seq] = vals[__LID_TOT]
+#                if len(vals.keys()) <= 2: #If only 2 lids, it should mean the total layer and other layer are the same
+#                    continue
+#            for (lid,val) in vals.items():
+#                if lid == __LID_TOT and not test_in_layers:
+#                    continue
+#                if test_in_layers and lid not in layers[test]:
+#                    continue
+#                nn = makeSheetLayer(test,lid)
+#                if lid == __LID_TOT or len(vals.keys()) <= 2:
+#                    nn = test
+#                if nn in res:
+#                    res[nn][seq] = val
+#                else:
+#                    res[nn] = {seq:val}
 
-    return res
+#    return res
 
 """
 Write results for a single test/sheet
-@return positions of relevant cells
+@return positions of relevant cells as res_ref[<seq>][<lid>] = {__KB, __KBS,__PSNR, __TIME}
 """
 def __writeSheet(sheet,data,scale,qp_names,order=None):
     # Write header
@@ -666,11 +668,11 @@ def __writeSheet(sheet,data,scale,qp_names,order=None):
         res_ref[seq] = {}
             
         #Set Layers
-        sheet.cell(row=seq_rows[seq],column=2).value = __LID_TOT
-        res_ref[seq][__LID_TOT] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
+        sheet.cell(row=seq_rows[seq],column=2).value = _LID_TOT
+        res_ref[seq][_LID_TOT] = {_KB:[], _KBS:[],_PSNR:[],_TIME:[]}
         for lid in layer_r:
             sheet.cell(row=seq_rows[seq]+lid+1,column=2).value = lid
-            res_ref[seq][lid] = {__KB:[], __KBS:[],__PSNR:[],__TIME:[]}
+            res_ref[seq][lid] = {_KB:[], _KBS:[],_PSNR:[],_TIME:[]}
         
 
     # Write Average "sequence"
@@ -695,33 +697,33 @@ def __writeSheet(sheet,data,scale,qp_names,order=None):
             for (qp,item) in sorted(qps.items()):
                 for (lid,val) in item.items():
                     r = seq_rows[seq] + lid + 1
-                    if lid == __LID_TOT:
+                    if lid == _LID_TOT:
                         r = seq_rows[seq]
                     c_kb = qp_cols[qp]
                     c_kbs = c_kb + 1
                     c_time = c_kbs + 1
                     c_psnr = c_time + len(__R_PSNR_SUB)
 
-                    sheet.cell(row=r,column=c_kb).value = val[__KB]
-                    sheet.cell(row=r,column=c_kbs).value = val[__KBS]
-                    sheet.cell(row=r,column=c_time).value = val[__TIME]
+                    sheet.cell(row=r,column=c_kb).value = val[_KB]
+                    sheet.cell(row=r,column=c_kbs).value = val[_KBS]
+                    sheet.cell(row=r,column=c_time).value = val[_TIME]
 
                     for i in range(len(__R_PSNR_SUB)-1):
-                        sheet.cell(row=r,column=c_psnr-i-1).value = float(val[__PSNR][-i-1])
+                        sheet.cell(row=r,column=c_psnr-i-1).value = float(val[_PSNR][-i-1])
                     sheet.cell(row=r,column=c_psnr).value = __PSNR_AVG.format(y = get_column_letter(c_psnr-3) + str(r),
                                                                               u = get_column_letter(c_psnr-2) + str(r),
                                                                               v = get_column_letter(c_psnr-1) + str(r))
 
-                    res_ref[seq][lid][__KB].append(get_column_letter(c_kb) + str(r))
-                    res_ref[seq][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
-                    res_ref[seq][lid][__TIME].append(get_column_letter(c_time) + str(r))
-                    res_ref[seq][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
+                    res_ref[seq][lid][_KB].append(get_column_letter(c_kb) + str(r))
+                    res_ref[seq][lid][_KBS].append(get_column_letter(c_kbs) + str(r))
+                    res_ref[seq][lid][_TIME].append(get_column_letter(c_time) + str(r))
+                    res_ref[seq][lid][_PSNR].append(get_column_letter(c_psnr) + str(r))
         else:
             # Set Average data
             for c_kb in sorted(qp_cols.values()):
                 for lid in res_ref[__SEQ_AVERAGE]:
                     r = seq_rows[__SEQ_AVERAGE] + lid + 1
-                    if lid == __LID_TOT:
+                    if lid == _LID_TOT:
                         r = seq_rows[__SEQ_AVERAGE]
                     c_kbs = c_kb + 1
                     c_time = c_kbs + 1
@@ -752,10 +754,10 @@ def __writeSheet(sheet,data,scale,qp_names,order=None):
                                                                               u = get_column_letter(c_psnr-2) + str(r),
                                                                               v = get_column_letter(c_psnr-1) + str(r))
 
-                    res_ref[__SEQ_AVERAGE][lid][__KB].append(get_column_letter(c_kb) + str(r))
-                    res_ref[__SEQ_AVERAGE][lid][__KBS].append(get_column_letter(c_kbs) + str(r))
-                    res_ref[__SEQ_AVERAGE][lid][__TIME].append(get_column_letter(c_time) + str(r))
-                    res_ref[__SEQ_AVERAGE][lid][__PSNR].append(get_column_letter(c_psnr) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][_KB].append(get_column_letter(c_kb) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][_KBS].append(get_column_letter(c_kbs) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][_TIME].append(get_column_letter(c_time) + str(r))
+                    res_ref[__SEQ_AVERAGE][lid][_PSNR].append(get_column_letter(c_psnr) + str(r))
 
 
     sheet.freeze_panes = 'A4'
@@ -766,20 +768,21 @@ def __writeSheet(sheet,data,scale,qp_names,order=None):
 """
 Write results to workbook. Assume wb has a Summary and Result Sheet.
 """
-def __writeResults(wb,results,layers={},s2_base=None):
-    s_sheet = wb['Summary']
-    s2_sheet = wb['Summary2']
+def __writeResults(wb,results,summary_defs):
+    #s_sheet = wb['Summary']
+    #s2_sheet = wb['Summary2']
     res_pos = {}
     
     # Write test results
     for (test,res) in sorted(results.items()):
         n_sheet = wb.create_sheet(title=test,index=0)
-        res_pos[test] = __writeSheet(n_sheet,res[__RES],res[__SCALE],res[__QPS],res[__INAMES])
-    res_pos = __makeSummary(res_pos,layers)
+        res_pos[test] = __writeSheet(n_sheet,res[_RES],res[_SCALE],res[_QPS],res[_INAMES])
+    #res_pos = __makeSummary(res_pos,layers)
     #print(res_pos)
-    #write summary sheet
-    __writeSummary(s_sheet,res_pos,res[__INAMES])
-    __writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
+    #write summary sheets
+    makeSummaries(wb, res_pos, **summary_defs)
+    #__writeSummary(s_sheet,res_pos,res[__INAMES])
+    #__writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
     wb.active = wb.index(s_sheet)
 
 """
@@ -789,7 +792,7 @@ Run given tests and write results to a exel file
 @param layers: A dict with test names as keys containing a list of layers to include in summary
 @param s2_base: Test name of the s2 summary that should be the base of the comparison
 """
-def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base = None, input_res = False ):
+def runTests( tests, outname, combi = [], layer_combi = [], input_res = False, **summary_defs ):
     print('Start running tests...')
     nt = 1
     for test in tests:
@@ -804,6 +807,6 @@ def runTests( tests, outname, combi = [], layer_combi = [], layers = {}, s2_base
     res = __combiTestResults(res,combi,layer_combi)
 
     wb = xl.load_workbook(cfg.exel_template,keep_vba=True)
-    __writeResults(wb,res,layers,s2_base)
+    __writeResults(wb,res,summary_defs)
     wb.save(cfg.results + outname + __FILE_END)
     print('Done.')
