@@ -7,6 +7,7 @@ from TestSuite import runTests
 import TestUtils as TU
 import re
 import operator as op
+from SummaryFactory import sn_BDBRM
 
 def main():
     seqs = cfg.sequences[cfg.hevc_A] + cfg.sequences[cfg.hevc_B]
@@ -58,9 +59,11 @@ def main():
     combi = TU.generate_combi(tpg_sim, combi_cond = TU.combiFactory(_thrd = op.eq,
                                                                     _owf = op.eq,
                                                                     _layer = lambda p1, p2: 0 if p1 == p2 else (-1 if p1 == "BL" else 1)))
-    layers = TU.make_BDBRMatrix_definition(TU.get_test_names(tests_scal) + TU.get_combi_names(combi), write_bdbr = False, write_bits = False, write_psnr = False)
+    matrix_summary = TU.make_BDBRMatrix_definition(TU.get_test_names(tests_scal) + TU.get_combi_names(combi), write_bdbr = False, write_bits = False, write_psnr = False)
 
-    runTests(tests_scal + tests_sim, outname, layer_combi=combi, layers=layers)
+    summaries = {sn_BDBRM: matrix_summary}
+
+    runTests(tests_scal + tests_sim, outname, layer_combi=combi, **summaries)
 
 if __name__ == "__main__":
     print("Execute test file " + __file__)

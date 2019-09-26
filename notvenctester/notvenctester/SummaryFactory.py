@@ -6,11 +6,12 @@ import openpyxl as xl
 
 #Define summary names used as keys f in definitions
 sn_BDBRM = "BDBRMatrix"
+sn_ANCHOR = "AnchorList"
 
 #Define definition templates for each summary type
 
 """
-__LAYERS:{<LayerCombiName>:<tuple of layers to include>}
+__LAYERS:{<test_name>:<tuple of layers to include>}
 """
 __LAYERS = "layers"
 __WRITE_BITS = "write_bits"
@@ -32,6 +33,35 @@ def create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, wri
     return definition
 
 """
+__????:dt_ANCHOR_SUB|None
+"""
+__BDBR = "bdbr"
+__BITS = "bits"
+__PSNR = "psnr"
+__TIME = "time"
+dt_ANCHOR = {__BDBR:{}, __BITS:{}, __PSNR:{}, __TIME:{}}
+"""
+dt_ANCHOR_SUB = {<test_name>:<anchor_test_name>|None}
+"""
+
+def create_AnchorList_definition(bdbr_def, bits_def, psnr_def, time_def):
+    definition = dt_ANCHOR.copy()
+    definition[__BDBR] = create_AnchorSub_definition(bdbr_def)
+    definition[__BITS] = create_AnchorSub_definition(bits_def)
+    definition[__PSNR] = create_AnchorSub_definition(psnr_def)
+    definition[__TIME] = create_AnchorSub_definition(time_def)
+    return definition
+
+def create_AnchorSub_definition(definition):
+    if not definition:
+        return None
+    if isinstance(definition, dict):
+        return definition.copy()
+    if isinstance(definition, tuple):
+        return {definition[0]:definition[1]}
+    return {name: val for (name, val) in definition}
+
+"""
 Function for creating summary sheets to the given workbook for the given data
 @param wb: work book where sheets will be added
 @param data_refs: references to the data sheets and data cell positions used for the summary in the form data_refs[<test_name>][<seq>][<lid>] = {__KB, __KBS,__PSNR, __TIME}
@@ -40,6 +70,8 @@ Function for creating summary sheets to the given workbook for the given data
 def makeSummaries(wb, data_refs, **definitions):
     if sn_BDBRM in definitions:
         makeBDBRMatrix(wb, data_refs, definitions[sn_BDBRM])
+    if sn_ANCHOR in definitions:
+        makeAnchorList(wb, data_refs, definitions[sn_ANCHOR])
 
 
 def makeBDBRMatrix(wb, data_refs, definition):
@@ -47,6 +79,9 @@ def makeBDBRMatrix(wb, data_refs, definition):
     reduced_refs = __makeSummary(data_refs, definitions[__LAYERS])
     __writeBDBRMatrix(bdbrm_sheet, reduced_refs, **definitions)
 
+def makeAnchorList(wb, data_refs, definition):
+    anchor_sheet = wb.create_sheet(sn_ANCHOR)
+    __writeAnchorList(anchor_sheet, data_refs, **definitions)
 
 #######################################
 # BDBRMatrix summary type definitions #
@@ -296,3 +331,17 @@ def __writePSNRSummaryMatrix(sheet, data, row, col):
                                      ColorScaleRule(start_type='min', start_color='FF772A',
                                                     mid_type='num', mid_value=0, mid_color='FFFFFF',
                                                     end_type='max', end_color='9BDE55' ))
+
+
+
+
+
+
+
+
+#######################################
+# AnchorList summary type definitions #
+#######################################
+
+def __writeAnchorList(sheet, data_refs, *, write_bdbr, write_bits, write_psnr, write_time, **other):
+    pass
