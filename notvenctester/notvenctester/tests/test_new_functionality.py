@@ -4,7 +4,7 @@ Test new functionality
 
 import cfg
 from TestSuite import runTests
-from TestUtils import TestParameterGroup, transformerFactory, generate_combi, combiFactory
+import TestUtils as TU
 import re
 import operator as op
 
@@ -18,7 +18,7 @@ def main():
     outname = "skvz_thread_owf_test_v{}".format(ver)
 
     # Set shared param
-    tpg_scal = TestParameterGroup()
+    tpg_scal = TU.TestParameterGroup()
     tpg_scal.add_const_param(version = ver,
                              bin_name = cfg.skvz_ver_bin.format(ver),
                              input_names = in_names,
@@ -40,26 +40,27 @@ def main():
 
     tpg_scal.add_const_param(inputs = scal_seqs)
     
-    tpg_scal.set_param_group_transformer(transformerFactory(test_name = lambda *, _thrd, _owf, **param: "SCAL_THRD{}_OWF{}".format(_thrd, _owf),
-                                                            layer_args = lambda *, layer_args, _thrd, _owf, **param: layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf))))
+    tpg_scal.set_param_group_transformer(TU.transformerFactory(test_name = lambda *, _thrd, _owf, **param: "SCAL_THRD{}_OWF{}".format(_thrd, _owf),
+                                                               layer_args = lambda *, layer_args, _thrd, _owf, **param: layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf))))
 
     # Set simulcast param
     tpg_sim.add_const_param(inputs = seqs)\
             .add_param_set(_layer=("BL","EL"))
 
-    tpg_sim.set_param_group_transformer(transformerFactory(test_name = lambda *, _layer, _thrd, _owf, **param: "{}_THRD{}_OWF{}".format(_layer, _thrd, _owf),
+    tpg_sim.set_param_group_transformer(TU.transformerFactory(test_name = lambda *, _layer, _thrd, _owf, **param: "{}_THRD{}_OWF{}".format(_layer, _thrd, _owf),
                                                             layer_args = lambda *, layer_args, _thrd, _owf, **param: layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf)),
                                                             inputs = lambda *, inputs, _layer, **param: tuple(map(bl_seq_map((0.5,)), inputs)) if _layer in "BL" else inputs))
 
 
     #Run tests
-    tests = tpg_scal.to_skvz_test_instance() + tpg_sim.to_skvz_test_instance()
-    combi = generate_combi(tpg_sim, combi_cond = combiFactory(_thrd = op.eq,
-                                                              _owf = op.eq,
-                                                              _layer = lambda p1, p2: 0 if p1 == p2 else (-1 if p1 == "BL" else 1)))
-    layers = []
+    tests_scal = tpg_scal.to_skvz_test_instance()
+    tests_sim = tpg_sim.to_skvz_test_instance()
+    combi = TU.generate_combi(tpg_sim, combi_cond = TU.combiFactory(_thrd = op.eq,
+                                                                    _owf = op.eq,
+                                                                    _layer = lambda p1, p2: 0 if p1 == p2 else (-1 if p1 == "BL" else 1)))
+    layers = TU.make_BDBRMatrix_definition(TU.get_test_names(tests_scal) + TU.get_combi_names(combi), write_bdbr = False, write_bits = False, write_psnr = False)
 
-    runTests(tests, outname, layer_combi=combi, layers=layers)
+    runTests(tests_scal + tests_sim, outname, layer_combi=combi, layers=layers)
 
 if __name__ == "__main__":
     print("Execute test file " + __file__)

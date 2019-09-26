@@ -6,10 +6,11 @@ import re
 import itertools as it
 from enum import Enum, auto
 from copy import deepcopy
-from typing import List, Dict, Tuple, Any, Callable, Union
+from typing import List, Dict, Tuple, Any, Callable, Union, Iterable
 from skvzTestInstance import skvzTestInstance
 from shmTestInstance import shmTestInstance
-
+from TestSuite import makeLayerCombiName
+from SummaryFactory import create_BDBRMatrix_definition
 
 ##### Function templates/factories for filters and transformers #####
 """
@@ -62,7 +63,7 @@ def combiFactory(*arbitrary_funcs: List[Callable[[dict,dict], Union[int,bool]]],
 @param name_func function that returns the value used for forming identifying the combi tests in TestSuite
 Return the combination definition used by TestSuite to combine results.
 """
-def generate_combi(*tpqs: List['TestParameterGroup'], combi_cond: Callable[[dict,dict], int], name_func: Callable[...,str]=lambda test_name,**p: test_name) -> List[Tuple[str]]:
+def generate_combi(*tpqs: List['TestParameterGroup'], combi_cond: Callable[[dict,dict], int], name_func: Callable[...,str] = lambda **p: get_test_names([skvzTestInstance(**p),])[0]) -> List[Tuple[str]]:
     #loop over all tpqs
     final_combi = []
     for tpq in tpqs:    
@@ -81,6 +82,36 @@ def generate_combi(*tpqs: List['TestParameterGroup'], combi_cond: Callable[[dict
         final_combi += [tuple((name_func(**cmb) for cmb in combi_sort(combis))) for combis in combi if len(combis) > 1]
     
     return final_combi
+
+"""
+Get combi names from the given combis
+@param combi_definition combi definition
+@param combi_name_func function used for generating the combi name
+@return list of combi names
+"""
+def get_combi_names(combi_definition: Iterable[Tuple[str]], combi_name_func: Callable[[Iterable[str]],str] = makeLayerCombiName) -> List[str]:
+    return [combi_name_func(combi) for combi in combi_definition]
+
+
+"""
+Get test names for given test instances
+@param test_instances an iterable of test instances
+@return list of test instance names
+"""
+def get_test_names(test_instances: Iterable[skvzTestInstance]) -> List[str]:
+    return [test._test_name for test in test_instances]
+
+
+
+"""
+make BDBRMatrix definition ()
+
+@return a BDBRMatrix definition
+"""
+def make_BDBRMatrix_definition(test_names: Iterable[str], layering_func: Callable[[str],Tuple[int]] = lambda _: (-1,), filter_func: Callable[[str],bool] = lambda _: True, write_bdbr: bool = True, write_bits: bool = True, write_psnr: bool = True, write_time: bool = True):
+    layers = {name : layering_func(name) for name in test_names if filter_func(name)}
+    return create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, write_time)
+
 
 
 """
@@ -152,7 +183,7 @@ class TestParameterGroup:
         return self._add_param(_ParamSetType.CONST, name_param)
 
     """
-    Filter out all parameter groups that satisfy the given filter
+    Filter out all parameter groups that do not satisfy the given filter function
     @filter function that takes in as parameters all parameter sets and returns a boolean value
     """
     def filter_parameter_group(self, filter: Callable[..., bool]) -> 'TestParameterGroup':

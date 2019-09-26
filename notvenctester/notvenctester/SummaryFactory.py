@@ -15,9 +15,21 @@ __LAYERS:{<LayerCombiName>:<tuple of layers to include>}
 __LAYERS = "layers"
 __WRITE_BITS = "write_bits"
 __WRITE_BDBR = "write_bdbr"
-__WRITE_PSRN = "write_psrn"
+__WRITE_PSNR = "write_psrn"
 __WRITE_TIME = "write_time"
-dt_BDBRM = {__LAYERS:{}, __WRITE_BDBR: True, __WRITE_BITS: True, __WRITE_PSRN: True, __WRITE_TIME: True}
+dt_BDBRM = {__LAYERS:{}, __WRITE_BDBR: True, __WRITE_BITS: True, __WRITE_PSNR: True, __WRITE_TIME: True}
+
+"""
+for creating the BDBRMatrix definition
+"""
+def create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, write_time):
+    definition = dt_BDBRM.copy()
+    definition[__LAYERS] = layers
+    definition[__WRITE_BDBR] = write_bdbr
+    definition[__WRITE_BITS] = write_bits
+    definition[__WRITE_PSNR] = write_psnr
+    definition[__WRITE_TIME] = write_time
+    return definition
 
 """
 Function for creating summary sheets to the given workbook for the given data
@@ -84,7 +96,7 @@ def __makeSummary(res_pos,layers={}):
 """
 Handle writing the BDBRMatrix summary sheet
 """
-def __writeBDBRMatrix(sheet, data_refs, *, other):
+def __writeBDBRMatrix(sheet, data_refs, *, write_bdbr, write_bits, write_psnr, write_time, **other):
     seq_ref = {}
     order = order if order else list(seq_ref.keys())
 
@@ -104,40 +116,46 @@ def __writeBDBRMatrix(sheet, data_refs, *, other):
         ref = seq_ref[seq]
         tests = sorted(ref.keys())
         
-        # write bdrate matrix
         row = sheet.max_row + 2
         brow = row
         prow = row
         trow = row
         col = 1 #sheet.max_column + 1
-        sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq)
-        sheet.merge_cells(start_column=col,start_row=row,end_column=col+len(tests),end_row=row)
-        (row, col) = __writeSummaryMatrixHeader(sheet, tests, row+1, col)
-        __writeBDSummaryMatrix(sheet, ref, row, col)
+        
+        # write bdrate matrix
+        if write_bdbr:  
+
+            sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq)
+            sheet.merge_cells(start_column=col,start_row=row,end_column=col+len(tests),end_row=row)
+            (row, col) = __writeSummaryMatrixHeader(sheet, tests, row+1, col)
+            __writeBDSummaryMatrix(sheet, ref, row, col)
 
         # write bit matrix
-        if 'bcol' not in locals():
-            bcol = sheet.max_column + 2
-        sheet.cell(row = brow, column = bcol).value = __S_BIT_HEADER
-        sheet.merge_cells(start_column=bcol,start_row=brow,end_column=bcol+len(tests),end_row=brow)
-        (brow, col) = __writeSummaryMatrixHeader(sheet, tests, brow+1, bcol)
-        __writeBSummaryMatrix(sheet, ref, brow, col)
+        if write_bits:
+            if 'bcol' not in locals():
+                bcol = sheet.max_column + 2
+            sheet.cell(row = brow, column = bcol).value = __S_BIT_HEADER
+            sheet.merge_cells(start_column=bcol,start_row=brow,end_column=bcol+len(tests),end_row=brow)
+            (brow, col) = __writeSummaryMatrixHeader(sheet, tests, brow+1, bcol)
+            __writeBSummaryMatrix(sheet, ref, brow, col)
 
         # write psnr matrix
-        if 'pcol' not in locals():
-            pcol = sheet.max_column + 2
-        sheet.cell(row = prow, column = pcol).value = __S_PSNR_HEADER
-        sheet.merge_cells(start_column=pcol,start_row=prow,end_column=pcol+len(tests),end_row=prow)
-        (prow, col) = __writeSummaryMatrixHeader(sheet, tests, prow+1, pcol)
-        __writePSNRSummaryMatrix(sheet, ref, prow, col)
+        if write_psnr:
+            if 'pcol' not in locals():
+                pcol = sheet.max_column + 2
+            sheet.cell(row = prow, column = pcol).value = __S_PSNR_HEADER
+            sheet.merge_cells(start_column=pcol,start_row=prow,end_column=pcol+len(tests),end_row=prow)
+            (prow, col) = __writeSummaryMatrixHeader(sheet, tests, prow+1, pcol)
+            __writePSNRSummaryMatrix(sheet, ref, prow, col)
 
         # write time matrix
-        if 'tcol' not in locals():
-            tcol = sheet.max_column + 2
-        sheet.cell(row = trow, column = tcol).value = __S_TIME_HEADER
-        sheet.merge_cells(start_column=tcol,start_row=trow,end_column=tcol+len(tests),end_row=trow)
-        (trow, col) = __writeSummaryMatrixHeader(sheet, tests, trow+1, tcol)
-        __writeTimeSummaryMatrix(sheet, ref, trow, col)
+        if write_time:
+            if 'tcol' not in locals():
+                tcol = sheet.max_column + 2
+            sheet.cell(row = trow, column = tcol).value = __S_TIME_HEADER
+            sheet.merge_cells(start_column=tcol,start_row=trow,end_column=tcol+len(tests),end_row=trow)
+            (trow, col) = __writeSummaryMatrixHeader(sheet, tests, trow+1, tcol)
+            __writeTimeSummaryMatrix(sheet, ref, trow, col)
 
     # Make columns wider
     for col in range(sheet.max_column):
