@@ -42,14 +42,14 @@ def main():
     tpg_scal.add_const_param(inputs = scal_seqs)
     
     tpg_scal.set_param_group_transformer(TU.transformerFactory(test_name = lambda *, _thrd, _owf, **param: "SCAL_THRD{}_OWF{}".format(_thrd, _owf),
-                                                               layer_args = lambda *, layer_args, _thrd, _owf, **param: layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf))))
+                                                               layer_args = lambda *, layer_args, _thrd, _owf, **param: (layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf)), layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf)))))
 
     # Set simulcast param
     tpg_sim.add_const_param(inputs = seqs)\
             .add_param_set(_layer=("BL","EL"))
 
     tpg_sim.set_param_group_transformer(TU.transformerFactory(test_name = lambda *, _layer, _thrd, _owf, **param: "{}_THRD{}_OWF{}".format(_layer, _thrd, _owf),
-                                                            layer_args = lambda *, layer_args, _thrd, _owf, **param: layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf)),
+                                                            layer_args = lambda *, layer_args, _thrd, _owf, **param: (layer_args + ("--threads",str(_thrd)) + ("--owf", str(_owf)),),
                                                             inputs = lambda *, inputs, _layer, **param: tuple(map(bl_seq_map((0.5,)), inputs)) if _layer in "BL" else inputs))
 
 

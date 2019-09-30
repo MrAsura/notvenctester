@@ -84,9 +84,9 @@ class skvzTestInstance(TestInstance):
 
         for (inp,size,name) in it.zip_longest(inputs,self._layer_sizes,input_names,fillvalue=None):
             if name is not None:
-                self._input_names[name] = (inp,size)
+                self._input_names[name] = (inp,size if size else [None])
             else:
-                self._input_names[str(inp)] = (inp,size)
+                self._input_names[str(inp)] = (inp,size if size else [None])
 
         self._input_names_order = input_names
 

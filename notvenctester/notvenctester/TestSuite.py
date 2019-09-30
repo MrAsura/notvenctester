@@ -83,8 +83,8 @@ def parseLayerCombiName(string):
 def makeLayerCombiName(combi):
     return __LCOMBI_SEP.join(combi)
 
-def getMaxLength( string_list ):
-    return max((len(x) for x in string_list))
+#def getMaxLength( string_list ):
+#    return max((len(x) for x in string_list))
 
 """
 Parse kb/s from test results 
@@ -780,7 +780,7 @@ def __writeResults(wb,results,summary_defs):
     #res_pos = __makeSummary(res_pos,layers)
     #print(res_pos)
     #write summary sheets
-    makeSummaries(wb, res_pos, **summary_defs)
+    makeSummaries(wb, res_pos, res[_INAMES], **summary_defs)
     #__writeSummary(s_sheet,res_pos,res[__INAMES])
     #__writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
     wb.active = wb.index(s_sheet)
