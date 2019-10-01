@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple, Any, Callable, Union, Iterable
 from skvzTestInstance import skvzTestInstance
 from shmTestInstance import shmTestInstance
 from TestSuite import makeLayerCombiName
-from SummaryFactory import create_BDBRMatrix_definition
+from SummaryFactory import create_BDBRMatrix_definition, create_AnchorList_definition
 
 ##### Function templates/factories for filters and transformers #####
 """
@@ -105,13 +105,77 @@ def get_test_names(test_instances: Iterable[skvzTestInstance]) -> List[str]:
 
 """
 make BDBRMatrix definition ()
-
+@param test_names names for tests that are used in the definition
+@param layering_func function that takes in test names and outputs layers to be included
+@param filter_func optional function for selecting tests from test_names
+@param write_* used for selecting what types of results to include
 @return a BDBRMatrix definition
 """
-def make_BDBRMatrix_definition(test_names: Iterable[str], layering_func: Callable[[str],Tuple[int]] = lambda _: (-1,), filter_func: Callable[[str],bool] = lambda _: True, write_bdbr: bool = True, write_bits: bool = True, write_psnr: bool = True, write_time: bool = True):
+def make_BDBRMatrix_definition(test_names: Iterable[str], layering_func: Callable[[str],Tuple[int]] = lambda _: (-1,), filter_func: Callable[[str],bool] = lambda _: True, write_bdbr: bool = True, write_bits: bool = True, write_psnr: bool = True, write_time: bool = True) -> dict:
     layers = {name : layering_func(name) for name in test_names if filter_func(name)}
     return create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, write_time)
 
+
+"""
+make AnchorList definition using a single anchor for all tests
+@param global_anchor/*_anchor name of anchor used for all tests across all the types of tests or the specified types of tests (can override global). None can be specified to get absolute values (not applicable to bdbr).
+@param global_tests/*_tests names of tests to include in all or the specidied types of tests (can override global)
+@param test_filter filter anchor-test pairs 
+@param layer_func return either input test name or a tuple of (<test_name>,<target_layer>)
+"""
+def make_AnchorList_singleAnchor_definition(global_anchor: str = None, global_tests: Iterable[str] = None, *, bdbr_anchor: str = None, bdbr_tests: Iterable[str] = None, bits_anchor: str = None, bits_tests: Iterable[str] = None, psnr_anchor: str = None, psnr_tests: Iterable[str] = None, time_anchor: str = None, time_tests: Iterable[str] = None, test_filter: Callable[[str, str], bool] = lambda *_: True, layer_func: Callable[[str], Union[Tuple[str, int], str]] = lambda t: t) -> dict:
+    #Set global values
+    layered_bdbr = layered_bits = layerred_psnr = layered_time = None
+    if global_anchor:
+        bdbr_anchor = bits_anchor = psnr_anchor = time_anchor = global_anchor
+    if global_tests:
+        layered_bdbr = layered_bits = layerred_psnr = layered_time = [(layer_func(test), layer_func(global_anchor)) for test in global_tests if test_filter(global_anchor,test)]
+    
+    #Construct per result type definitions
+    if bdbr_tests:
+        layered_bdbr = [(layer_func(test), layer_func(bdbr_anchor)) for test in bdbr_tests if test_filter(bdbr_anchor,test)]
+    if bdbr_tests:
+        layered_bits = [(layer_func(test), layer_func(bits_anchor)) for test in bits_tests if test_filter(bits_anchor,test)]
+    if psnr_tests:
+        layered_psnr = [(layer_func(test), layer_func(psnr_anchor)) for test in psnr_tests if test_filter(psnr_anchor,test)]
+    if time_tests:
+        layered_time = [(layer_func(test), layer_func(time_anchor)) for test in time_tests if test_filter(time_anchor,test)]
+
+    return create_AnchorList_definition(bdbr_def = layered_bdbr,
+                                        bits_def = layered_bits,
+                                        psnr_def = layered_psnr,
+                                        time_def = layered_time)
+
+"""
+Make AnchorList definition with per test anchors
+@param test_in test names that are used to generate the definition
+@param global_anchor_func/*_anchor_func functions that return the name of anchor used for all tests across all the types of tests or the specified types of tests (can override global). None can be specified to get absolute values (not applicable to bdbr).
+@param test_filter filter anchor-test pairs 
+@param layer_func return either input test name or a tuple of (<test_name>,<target_layer>)
+"""
+def make_AnchorList_multiAnchor_definition(test_in: Iterable[str], global_anchor_func: Callable[[str], str] = None, *, bdbr_anchor_func: Callable[[str], str] = None, bits_anchor_func: Callable[[str], str] = None, psnr_anchor_func: Callable[[str], str] = None, time_anchor_func: Callable[[str], str] = None, test_filter: Callable[[str, str], bool] = lambda *_: True, layer_func: Callable[[str], Union[Tuple[str, int], str]] = lambda t: t) -> dict:
+    layered_bdbr = layered_bits = layerred_psnr = layered_time = None
+    
+    if global_anchor_func:
+        bdbr_anchor_func = bdbr_anchor_func if bdbr_anchor_func else global_anchor_func
+        bits_anchor_func = bits_anchor_func if bits_anchor_func else global_anchor_func
+        psnr_anchor_func = psnr_anchor_func if psnr_anchor_func else global_anchor_func
+        time_anchor_func = time_anchor_func if time_anchor_func else global_anchor_func
+    
+    #Construct per result type definitions
+    if bdbr_anchor_func:
+        layered_bdbr = [(layer_func(test), layer_func(bdbr_anchor_func(test))) for test in test_in if test_filter(bdbr_anchor_func(test), test)]
+    if bits_anchor_func:
+        layered_bits = [(layer_func(test), layer_func(bits_anchor_func(test))) for test in test_in if test_filter(bits_anchor_func(test), test)]
+    if psnr_anchor_func:
+        layered_psnr = [(layer_func(test), layer_func(psnr_anchor_func(test))) for test in test_in if test_filter(psnr_anchor_func(test), test)]
+    if time_anchor_func:
+        layered_time = [(layer_func(test), layer_func(time_anchor_func(test))) for test in test_in if test_filter(time_anchor_func(test), test)]
+
+    return create_AnchorList_definition(bdbr_def = layered_bdbr,
+                                        bits_def = layered_bits,
+                                        psnr_def = layered_psnr,
+                                        time_def = layered_time)
 
 
 """
