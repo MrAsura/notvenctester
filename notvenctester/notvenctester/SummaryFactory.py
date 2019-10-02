@@ -41,7 +41,7 @@ __PSNR = "psnr"
 __TIME = "time"
 dt_ANCHOR = {__BDBR:{}, __BITS:{}, __PSNR:{}, __TIME:{}}
 """
-dt_ANCHOR_SUB = {<test_name>:<anchor_test_name>|None}
+dt_ANCHOR_SUB = {<test_name>:(<anchor_test_name>|None,...)}
 """
 
 """
@@ -56,20 +56,27 @@ def create_AnchorList_definition(bdbr_def, bits_def, psnr_def, time_def):
     return definition
 
 """
-Sub anchor list definition. Takes in test anchor pairs with optional layer ids ((<name>,#lid):(<anchor>,#lid))
+Sub anchor list definition. Takes in a list of test anchor pairs with optional layer ids ((<name>,#lid):(<anchor>,#lid))
 """
 def create_AnchorSub_definition(definition):
     from TestSuite import makeSheetLayer, _LID_TOT
     def processTestName(tn):
-        return makeSheetLayer(tn[0],tn[1]) if isinstance(tn, tuple) and tn[1] != _LID_TOT else tn
+        if not tn:
+            return None
+        if isinstance(tn, str):
+            return tn
+        if len(tn) == 2 and isinstance(tn, tuple):
+            if isinstance(tn[0], str) and isinstance(tn[1], int):
+                return makeSheetLayer(tn[0], tn[1]) if tn[1] != _LID_TOT else tn[0]
+        return tuple(processTestName(test) for test in tn)
 
     if not definition:
         return None
     if isinstance(definition, tuple):
-        return {processTestName(definition[0]):processTestName(definition[1])}
+        return {processTestName(definition[0]): processTestName(definition[1])}
     if isinstance(definition, dict):
         definition = definition.items()
-    return {processTestName(name): processTestName(val) for (name, val) in definition}
+    return {processTestName(name): processTestName(val) for (name, val) in definition if val}
 
 """
 Function for creating summary sheets to the given workbook for the given data
@@ -300,23 +307,25 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
 def __writeAnchorListHeader(sheet, sub_def, row, col):
     #Write horizontal headers/test names
     tmp_col = col
-    for (test,anchor) in sub_def.items():
-        sheet.cell(row = row, column = tmp_col).value = test
-        sheet.cell(row = row + 1, column = tmp_col).value = anchor
-        tmp_col += 1
+    for (test,anchors) in sub_def.items():
+        for anchor in anchors:
+            sheet.cell(row = row, column = tmp_col).value = test
+            sheet.cell(row = row + 1, column = tmp_col).value = anchor
+            tmp_col += 1
 
 
 def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent'):
     #final_r = row+len(data.keys())
     #final_c = col+len(data.keys())
-    for (c, (test, anchor)) in zip(range(col,col+len(sub_def.keys())), sub_def.items()):
-        test_res =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data_func(ref, test)]
-        anchor_res =[__SR_FORMAT.format(sheet=parseSheetLayer(anchor)[0],cell=cl) for cl in data_func(ref, anchor)]
-        sheet.cell(row = row, column = c).value = data_format.format(*(test_res+anchor_res))
-        sheet.cell(row = row, column = c).style = number_style
-        if number_format:
-            sheet.cell(row = row, column = c).number_format = number_format
-        sheet.cell(row=row,column=c).alignment = xl.styles.Alignment(horizontal='center')
+    for (c, (test, anchors)) in zip(range(col,col+len(sub_def.keys())), sub_def.items()):
+        for anchor in anchors:
+            test_res =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data_func(ref, test)]
+            anchor_res =[__SR_FORMAT.format(sheet=parseSheetLayer(anchor)[0],cell=cl) for cl in data_func(ref, anchor)]
+            sheet.cell(row = row, column = c).value = data_format.format(*(test_res+anchor_res))
+            sheet.cell(row = row, column = c).style = number_style
+            if number_format:
+                sheet.cell(row = row, column = c).number_format = number_format
+            sheet.cell(row=row,column=c).alignment = xl.styles.Alignment(horizontal='center')
     # Set conditional coloring
     #form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
     #sheet.conditional_formatting.add(form_range, color_scale_rule)
