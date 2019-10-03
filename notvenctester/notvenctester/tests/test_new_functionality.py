@@ -7,7 +7,7 @@ from TestSuite import runTests
 import TestUtils as TU
 import re
 import operator as op
-from SummaryFactory import sn_BDBRM
+from SummaryFactory import sn_BDBRM, sn_ANCHOR
 
 def main():
     seqs = cfg.sequences[cfg.hevc_A] + cfg.sequences[cfg.hevc_B]
@@ -59,9 +59,18 @@ def main():
     combi = TU.generate_combi(tpg_sim, combi_cond = TU.combiFactory(_thrd = op.eq,
                                                                     _owf = op.eq,
                                                                     _layer = lambda p1, p2: 0 if p1 == p2 else (-1 if p1 == "BL" else 1)))
-    matrix_summary = TU.make_BDBRMatrix_definition(TU.get_test_names(tests_scal) + TU.get_combi_names(combi), write_bdbr = False, write_bits = False, write_psnr = False)
 
-    summaries = {sn_BDBRM: matrix_summary}
+    sim_names = TU.get_combi_names(combi)
+    test_names = TU.get_test_names(tests_scal) + sim_names
+    matrix_summary = TU.make_BDBRMatrix_definition(test_names, write_bdbr = False, write_bits = False, write_psnr = False)
+
+    anchor_summary = TU.make_AnchorList_multiAnchor_definition(test_names,
+                                                               bdbr_anchor_func = lambda t: tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1]),
+                                                               time_anchor_func = lambda t: (None,) + tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1]),
+                                                               test_filter = lambda t: True if "SCAL" in t else False )
+
+    summaries = {sn_BDBRM: matrix_summary,
+                 sn_ANCHOR: anchor_summary}
 
     runTests(tests_scal + tests_sim, outname, layer_combi=combi, **summaries)
 

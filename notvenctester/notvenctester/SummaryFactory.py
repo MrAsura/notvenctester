@@ -3,6 +3,8 @@ Module for defining and processing summary sheets
 """
 
 import openpyxl as xl
+from openpyxl.utils import get_column_letter
+from openpyxl.formatting.rule import ColorScaleRule
 
 #Define summary names used as keys f in definitions
 sn_BDBRM = "BDBRMatrix"
@@ -16,7 +18,7 @@ __LAYERS:{<test_name>:<tuple of layers (lid) to include>}
 __LAYERS = "layers"
 __WRITE_BITS = "write_bits"
 __WRITE_BDBR = "write_bdbr"
-__WRITE_PSNR = "write_psrn"
+__WRITE_PSNR = "write_psnr"
 __WRITE_TIME = "write_time"
 dt_BDBRM = {__LAYERS:{}, __WRITE_BDBR: True, __WRITE_BITS: True, __WRITE_PSNR: True, __WRITE_TIME: True}
 
@@ -113,16 +115,16 @@ def __makeSummary(res_pos,layers={}):
         for (seq,vals) in item.items():
             test_in_layers = test in layers
             if not test_in_layers:
-                res[test][seq] = vals[LID_TOT]
+                res[test][seq] = vals[_LID_TOT]
                 if len(vals.keys()) <= 2: #If only 2 lids, it should mean the total layer and other layer are the same
                     continue
             for (lid,val) in vals.items():
-                if lid == LID_TOT and not test_in_layers:
+                if lid == _LID_TOT and not test_in_layers:
                     continue
                 if test_in_layers and lid not in layers[test]:
                     continue
                 nn = makeSheetLayer(test,lid)
-                if lid == LID_TOT or len(vals.keys()) <= 2:
+                if lid == _LID_TOT or len(vals.keys()) <= 2:
                     nn = test
                 if nn in res:
                     res[nn][seq] = val
@@ -171,6 +173,7 @@ Handle writing the anchor list structure
 """
 
 def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time, **other):
+    from TestSuite import _PSNR, _KBS, _KB, _TIME
     seq_ref = __flip_dict(data_refs) # transform data_refs to seq_ref[<seq>][<test_name>] order
     order = order if order else list(seq_ref.keys())
 
@@ -197,13 +200,10 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
             sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
             sheet.cell(row = row, column = col - 1).value = __AL_SEQ
 
-            __writeAnchorListData(sheet, ref[seq], bdbr, row, bdcol,
+            __writeAnchorListData(sheet, seq_ref[seq], bdbr, row, bdcol,
                                      data_func = lambda data, test: data[test][_KBS] + data[test][_PSNR],
                                      data_format = __S_BDRATE_FORMAT,
-                                     number_format = '0.00%',
-                                     color_scale_rule = ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
-                                                                       mid_type='num', mid_value=0, mid_color='FFFFFF',
-                                                                       end_type='percentile', end_value=10, end_color='F8696B' ))
+                                     number_format = '0.00%')
                                    
 
         # write bit tests
@@ -220,12 +220,9 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
             sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
             sheet.cell(row = row, column = col - 1).value = __AL_SEQ
 
-            __writeAnchorListData(sheet, ref[seq], bits, row, bcol,
+            __writeAnchorListData(sheet, seq_ref[seq], bits, row, bcol,
                                      data_func = lambda data, test: data[test][_KB],
-                                     data_format = __S_BIT_FORMAT,
-                                     color_scale_rule = ColorScaleRule(start_type='min', start_color='4F81BD',
-                                                                       mid_type='num', mid_value=1, mid_color='FFFFFF',
-                                                                       end_type='percentile', end_value=80, end_color='F8696B' ))
+                                     data_format = __S_BIT_FORMAT)
 
         # write psnr tests
         if psnr:
@@ -241,14 +238,11 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
             sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
             sheet.cell(row = row, column = col - 1).value = __AL_SEQ
 
-            __writeAnchorListData(sheet, ref[seq], psnr, row, pcol,
+            __writeAnchorListData(sheet, seq_ref[seq], psnr, row, pcol,
                                      data_func = lambda data, test: data[test][_PSNR],
                                      data_format = __S_PSNR_FORMAT,
                                      data_style = 'Comma',
-                                     def_val = 0,
-                                     color_scale_rule = ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
-                                                                       mid_type='num', mid_value=0, mid_color='FFFFFF',
-                                                                       end_type='percentile', end_value=10, end_color='F8696B' ))
+                                     def_val = 0)
 
         # write time matrix
         if time:
@@ -264,12 +258,9 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
             sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
             sheet.cell(row = row, column = col - 1).value = __AL_SEQ
 
-            __writeAnchorListData(sheet, ref[seq], time, row, tcol,
+            __writeAnchorListData(sheet, seq_ref[seq], time, row, tcol,
                                      data_func = lambda data, test: data[test][_TIME],
-                                     data_format = __S_TIME_FORMAT,
-                                     color_scale_rule = ColorScaleRule(start_type='min', start_color='9BDE55',#'63BE7B',
-                                                                       mid_type='num', mid_value=1, mid_color='FFFFFF',
-                                                                       end_type='percentile', end_value=80, end_color='00BBEF'))
+                                     data_format = __S_TIME_FORMAT)
 
     # Make columns wider
     for column in range(sheet.max_column):
@@ -315,6 +306,7 @@ def __writeAnchorListHeader(sheet, sub_def, row, col):
 
 
 def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent'):
+    from TestSuite import parseSheetLayer
     #final_r = row+len(data.keys())
     #final_c = col+len(data.keys())
     for (c, (test, anchors)) in zip(range(col,col+len(sub_def.keys())), sub_def.items()):
@@ -454,6 +446,7 @@ def __writeSummaryMatrixHeader(sheet, tests, row, col):
 Write summary matrix data array
 """
 def __writeSummaryDataMatrix(sheet, data, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent', def_val = '-', color_scale_rule):
+    from TestSuite import parseSheetLayer
     test_col = col - 1
     test_row = row - 1
     final_r = row+len(data.keys())

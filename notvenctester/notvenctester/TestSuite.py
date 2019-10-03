@@ -3,8 +3,8 @@ Test suite containing functions for generating test results from TestInstances
 """
 
 import openpyxl as xl
-from openpyxl.utils import get_column_letter, column_index_from_string
-from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.utils import get_column_letter
+#from openpyxl.formatting.rule import ColorScaleRule
 #import re
 import cfg
 import ast

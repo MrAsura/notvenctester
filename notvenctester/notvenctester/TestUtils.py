@@ -6,7 +6,7 @@ import re
 import itertools as it
 from enum import Enum, auto
 from copy import deepcopy
-from typing import List, Dict, Tuple, Any, Callable, Union, Iterable
+from typing import List, Dict, Tuple, Any, Callable, Union, Iterable, TypeVar
 from skvzTestInstance import skvzTestInstance
 from shmTestInstance import shmTestInstance
 from TestSuite import makeLayerCombiName
@@ -115,9 +115,9 @@ def make_BDBRMatrix_definition(test_names: Iterable[str], layering_func: Callabl
     layers = {name : layering_func(name) for name in test_names if filter_func(name)}
     return create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, write_time)
 
-
-Layer_func_t = Callable[[str], Union[Tuple[str, int], str]]
-Anchor_func_t = Callable[[str], Tuple[Union[str,None]]]
+T = TypeVar('T')
+Layer_func_t = Callable[[T], Union[Tuple[str, int], T]]
+Anchor_func_t = Callable[[str], Tuple[Union[str,None,Tuple[str,int]]]]
 
 """
 make AnchorList definition using a single anchor for all tests
@@ -152,12 +152,12 @@ def make_AnchorList_singleAnchor_definition(global_anchor: str = None, global_te
 """
 Make AnchorList definition with per test anchors
 @param test_in test names that are used to generate the definition
-@param global_anchor_func/*_anchor_func functions that return the name of anchor used for all tests across all the types of tests or the specified types of tests (can override global). None can be specified to get absolute values (not applicable to bdbr).
+@param global_anchor_func/*_anchor_func functions that return the name of anchor used for all tests across all the types of tests or the specified types of tests (can override global). None can be specified to get absolute values (not applicable to bdbr). May also add layer info in case multiple anchors are returned
 @param test_filter filter out unwanted tests
 @param layer_func return either input test name or a tuple of (<test_name>,<target_layer>)
 """
 def make_AnchorList_multiAnchor_definition(test_in: Iterable[str], global_anchor_func: Anchor_func_t = None, *, bdbr_anchor_func: Anchor_func_t = None, bits_anchor_func: Anchor_func_t = None, psnr_anchor_func: Anchor_func_t = None, time_anchor_func: Anchor_func_t = None, test_filter: Callable[[str], bool] = lambda *_: True, layer_func: Layer_func_t = lambda t: t) -> dict:
-    layered_bdbr = layered_bits = layerred_psnr = layered_time = None
+    layered_bdbr = layered_bits = layered_psnr = layered_time = None
     
     if global_anchor_func:
         bdbr_anchor_func = bdbr_anchor_func if bdbr_anchor_func else global_anchor_func
