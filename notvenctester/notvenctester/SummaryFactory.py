@@ -154,6 +154,9 @@ __S_TIME_FORMAT = "=AVERAGE({},{},{},{})/AVERAGE({},{},{},{})"
 __S_PSNR_FORMAT = "=AVERAGE({},{},{},{})-AVERAGE({},{},{},{})"
 __SR_FORMAT = r"'{sheet}'!{cell}"
 
+__S_BIT_ABS_FORMAT = "=AVERAGE({},{},{},{})"
+__S_TIME_ABS_FORMAT = "=AVERAGE({},{},{},{})"
+__S_PSNR_ABS_FORMAT = "=AVERAGE({},{},{},{})"
 
 #######################################
 # AnchorList summary type definitions #
@@ -222,7 +225,8 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
 
             __writeAnchorListData(sheet, seq_ref[seq], bits, row, bcol,
                                      data_func = lambda data, test: data[test][_KB],
-                                     data_format = __S_BIT_FORMAT)
+                                     data_format = __S_BIT_FORMAT,
+                                     abs_format = __S_BIT_ABS_FORMAT)
 
         # write psnr tests
         if psnr:
@@ -241,6 +245,7 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
             __writeAnchorListData(sheet, seq_ref[seq], psnr, row, pcol,
                                      data_func = lambda data, test: data[test][_PSNR],
                                      data_format = __S_PSNR_FORMAT,
+                                     abs_format = __S_PSNR_ABS_FORMAT,
                                      data_style = 'Comma',
                                      def_val = 0)
 
@@ -260,7 +265,8 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
 
             __writeAnchorListData(sheet, seq_ref[seq], time, row, tcol,
                                      data_func = lambda data, test: data[test][_TIME],
-                                     data_format = __S_TIME_FORMAT)
+                                     data_format = __S_TIME_FORMAT,
+                                     abs_format = __S_TIME_ABS_FORMAT)
 
     # Make columns wider
     for column in range(sheet.max_column):
@@ -291,7 +297,7 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
                                           mid_type='num', mid_value=1, mid_color='FFFFFF',
                                           end_type='percentile', end_value=80, end_color='00BBEF'))
 
-    for (f_range, c_rule) in zip(form_range, color_rules):
+    for (f_range, c_rule) in zip(form_ranges, color_rules):
         sheet.conditional_formatting.add(f_range, c_rule)
 
 
@@ -305,15 +311,23 @@ def __writeAnchorListHeader(sheet, sub_def, row, col):
             tmp_col += 1
 
 
-def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent'):
+def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent', abs_format = None):
     from TestSuite import parseSheetLayer
     #final_r = row+len(data.keys())
     #final_c = col+len(data.keys())
     for (c, (test, anchors)) in zip(range(col,col+len(sub_def.keys())), sub_def.items()):
         for anchor in anchors:
+            value_format = data_format
+            anchor_res = []
+            if not anchor:
+                if abs_format:
+                    value_format = abs_format
+                else:
+                    continue
+            else:
+                anchor_res =[__SR_FORMAT.format(sheet=parseSheetLayer(anchor)[0],cell=cl) for cl in data_func(ref, anchor)]
             test_res =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data_func(ref, test)]
-            anchor_res =[__SR_FORMAT.format(sheet=parseSheetLayer(anchor)[0],cell=cl) for cl in data_func(ref, anchor)]
-            sheet.cell(row = row, column = c).value = data_format.format(*(test_res+anchor_res))
+            sheet.cell(row = row, column = c).value = value_format.format(*(test_res+anchor_res))
             sheet.cell(row = row, column = c).style = number_style
             if number_format:
                 sheet.cell(row = row, column = c).number_format = number_format
