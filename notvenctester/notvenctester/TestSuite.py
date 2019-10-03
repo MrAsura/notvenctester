@@ -783,7 +783,7 @@ def __writeResults(wb,results,summary_defs):
     makeSummaries(wb, res_pos, res[_INAMES], **summary_defs)
     #__writeSummary(s_sheet,res_pos,res[__INAMES])
     #__writeSummary2(s2_sheet,res_pos,s2_base if s2_base else tuple(sorted(res_pos.keys()))[-1],res[__INAMES])
-    wb.active = wb.index(s_sheet)
+    #wb.active = wb.index(s_sheet)
 
 """
 Run given tests and write results to a exel file

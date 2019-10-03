@@ -97,11 +97,13 @@ def makeBDBRMatrix(wb, data_refs, order, definition):
     bdbrm_sheet = wb.create_sheet(sn_BDBRM)
     expanded_refs = __makeSummary(data_refs, definition[__LAYERS])
     __writeBDBRMatrix(bdbrm_sheet, expanded_refs, order, **definition)
+    wb.active = wb.index(wb[sn_BDBRM])
 
 def makeAnchorList(wb, data_refs, order, definition):
     anchor_sheet = wb.create_sheet(sn_ANCHOR)
     expanded_refs = __makeSummary(data_refs)
     __writeAnchorList(anchor_sheet, expanded_refs, order, **definition)
+    wb.active = wb.index(wb[sn_ANCHOR])
 
 """
 Transform res_pos into summary test structure making test layers into their own tests
@@ -169,7 +171,7 @@ __AL_PSNR_HEADER = r"PSNR results"
 __AL_TIME_HEADER = r"Time results"
 __AL_TEST = r"Test:"
 __AL_ANCHOR = r"Anchor:"
-__AL_SEQ = r"Sequences:"
+__AL_SEQ = r"Sequences"
 
 """
 Handle writing the anchor list structure
@@ -182,28 +184,29 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
 
     # Each sequence is one line so generate one columns for each test in each gategory based on the given definitions
     sheet.cell(row = 1, column = 1).value = __AL_HEADER 
+    static_row = 1
     
     for seq in order:
 
+        header_offset = 0
         row = sheet.max_row + 1
         col = 3 #sheet.max_column + 1
-        first_row = row + 1
+        
+        if 'first_row' not in locals():
+            first_row = row + 1
 
         # write bdrate tests
         if bdbr:
             if 'bdcol' not in locals():
                 bdcol = sheet.max_column + 2
-                sheet.cell(row = row-1, column = bdcol - 1).value = __AL_BD_HEADER
-                sheet.cell(row = row, column = bdcol - 1).value = __AL_TEST
-                sheet.cell(row = row+1, column = bdcol - 1).value = __AL_SEQ
-                __writeAnchorListHeader(sheet, bdbr, row, bdcol)
-                row += 1
+                sheet.cell(row = static_row, column = bdcol - 1).value = __AL_BD_HEADER
+                sheet.cell(row = static_row + 1, column = bdcol - 1).value = __AL_TEST
+                sheet.cell(row = static_row + 2, column = bdcol - 1).value = __AL_ANCHOR
+                sheet.cell(row = static_row + 3, column = bdcol - 1).value = __AL_SEQ
+                __writeAnchorListHeader(sheet, bdbr, static_row + 1, bdcol)
+                header_offset = static_row + 3
 
-            # Write sequence
-            sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
-            sheet.cell(row = row, column = col - 1).value = __AL_SEQ
-
-            __writeAnchorListData(sheet, seq_ref[seq], bdbr, row, bdcol,
+            __writeAnchorListData(sheet, seq_ref[seq], bdbr, row + header_offset, bdcol,
                                      data_func = lambda data, test: data[test][_KBS] + data[test][_PSNR],
                                      data_format = __S_BDRATE_FORMAT,
                                      number_format = '0.00%')
@@ -213,15 +216,12 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
         if bits:
             if 'bcol' not in locals():
                 bcol = sheet.max_column + 2
-                sheet.cell(row = row-1, column = bcol - 1).value = __AL_B_HEADER
-                sheet.cell(row = row, column = bcol - 1).value = __AL_TEST
-                sheet.cell(row = row+1, column = bcol - 1).value = __AL_SEQ
+                sheet.cell(row = static_row, column = bcol - 1).value = __AL_B_HEADER
+                sheet.cell(row = static_row + 1, column = bcol - 1).value = __AL_TEST
+                sheet.cell(row = static_row + 2, column = bcol - 1).value = __AL_ANCHOR
+                sheet.cell(row = static_row + 3, column = bcol - 1).value = __AL_SEQ
                 __writeAnchorListHeader(sheet, bits, row, bcol)
-                row += 1
-
-            # Write sequence
-            sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
-            sheet.cell(row = row, column = col - 1).value = __AL_SEQ
+                header_offset = static_row + 3
 
             __writeAnchorListData(sheet, seq_ref[seq], bits, row, bcol,
                                      data_func = lambda data, test: data[test][_KB],
@@ -232,16 +232,13 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
         if psnr:
             if 'pcol' not in locals():
                 pcol = sheet.max_column + 2
-                sheet.cell(row = row-1, column = pcol - 1).value = __AL_B_HEADER
-                sheet.cell(row = row, column = pcol - 1).value = __AL_TEST
-                sheet.cell(row = row+1, column = pcol - 1).value = __AL_SEQ
+                sheet.cell(row = static_row, column = pcol - 1).value = __AL_B_HEADER
+                sheet.cell(row = static_row + 1, column = pcol - 1).value = __AL_TEST
+                sheet.cell(row = static_row + 2, column = pcol - 1).value = __AL_ANCHOR
+                sheet.cell(row = static_row + 3, column = pcol - 1).value = __AL_SEQ
                 __writeAnchorListHeader(sheet, psnr, row, pcol)
-                row += 1
-
-            # Write sequence
-            sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
-            sheet.cell(row = row, column = col - 1).value = __AL_SEQ
-
+                header_offset = static_row + 3
+            
             __writeAnchorListData(sheet, seq_ref[seq], psnr, row, pcol,
                                      data_func = lambda data, test: data[test][_PSNR],
                                      data_format = __S_PSNR_FORMAT,
@@ -253,20 +250,21 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
         if time:
             if 'tcol' not in locals():
                 tcol = sheet.max_column + 2
-                sheet.cell(row = row-1, column = tcol - 1).value = __AL_B_HEADER
-                sheet.cell(row = row, column = tcol - 1).value = __AL_TEST
-                sheet.cell(row = row+1, column = tcol - 1).value = __AL_SEQ
+                sheet.cell(row = static_row, column = tcol - 1).value = __AL_B_HEADER
+                sheet.cell(row = static_row + 1, column = tcol - 1).value = __AL_TEST
+                sheet.cell(row = static_row + 2, column = tcol - 1).value = __AL_ANCHOR
+                sheet.cell(row = static_row + 3, column = tcol - 1).value = __AL_SEQ
                 __writeAnchorListHeader(sheet, time, row, tcol)
-                row += 1
-
-            # Write sequence
-            sheet.cell(row = row, column = col).value = __AL_SEQ_FORMAT.format(seq)
-            sheet.cell(row = row, column = col - 1).value = __AL_SEQ
-
+                header_offset = static_row + 3
+            
             __writeAnchorListData(sheet, seq_ref[seq], time, row, tcol,
                                      data_func = lambda data, test: data[test][_TIME],
                                      data_format = __S_TIME_FORMAT,
                                      abs_format = __S_TIME_ABS_FORMAT)
+
+        # Write sequence
+        sheet.cell(row = row + header_offset, column = col).value = __AL_SEQ_FORMAT.format(seq)
+
 
     # Make columns wider
     for column in range(sheet.max_column):
@@ -277,22 +275,22 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
     color_rules = []
     #BDRATE
     if bdbr:
-        form_ranges.append("{}:{}".format(get_column_letter(bdcol)+str(first_row),get_column_letter(len(bdbr.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(bdcol)+str(first_row),get_column_letter(bdcol + len(bdbr.keys()))+str(row)))
         color_rules.append(ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
                                           mid_type='num', mid_value=0, mid_color='FFFFFF',
                                           end_type='percentile', end_value=10, end_color='F8696B' ))
     if bits:
-        form_ranges.append("{}:{}".format(get_column_letter(bcol)+str(first_row),get_column_letter(len(bits.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(bcol)+str(first_row),get_column_letter(bcol + len(bits.keys()))+str(row)))
         color_rules.append(ColorScaleRule(start_type='min', start_color='4F81BD',
                                           mid_type='num', mid_value=1, mid_color='FFFFFF',
                                           end_type='percentile', end_value=80, end_color='F8696B' ))
     if psnr:
-        form_ranges.append("{}:{}".format(get_column_letter(pcol)+str(first_row),get_column_letter(len(psnr.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(pcol)+str(first_row),get_column_letter(pcol + len(psnr.keys()))+str(row)))
         color_rules.append(ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
                                           mid_type='num', mid_value=0, mid_color='FFFFFF',
                                           end_type='percentile', end_value=10, end_color='F8696B' ))
     if time:
-        form_ranges.append("{}:{}".format(get_column_letter(tcol)+str(first_row),get_column_letter(len(time.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(tcol)+str(first_row),get_column_letter(tcol + len(time.keys()))+str(row)))
         color_rules.append(ColorScaleRule(start_type='min', start_color='9BDE55',#'63BE7B',
                                           mid_type='num', mid_value=1, mid_color='FFFFFF',
                                           end_type='percentile', end_value=80, end_color='00BBEF'))
@@ -370,11 +368,12 @@ def __writeBDBRMatrix(sheet, data_refs, order = None, *, write_bdbr, write_bits,
         prow = row
         trow = row
         col = 1 #sheet.max_column + 1
+
+        sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq) #Write sequence header
         
         # write bdrate matrix
         if write_bdbr:  
 
-            sheet.cell(row = row, column = col).value = __S_SEQ_HEADER.format(seq)
             sheet.merge_cells(start_column=col,start_row=row,end_column=col+len(tests),end_row=row)
             (row, col) = __writeSummaryMatrixHeader(sheet, tests, row+1, col)
             __writeSummaryDataMatrix(sheet, ref, row, col,
