@@ -62,7 +62,9 @@ def main():
 
     sim_names = TU.get_combi_names(combi)
     test_names = TU.get_test_names(tests_scal) + sim_names
-    matrix_summary = TU.make_BDBRMatrix_definition(test_names, write_bdbr = False, write_bits = False, write_psnr = False)
+    matrix_summary = TU.make_BDBRMatrix_definition(test_names + TU.get_test_names(tests_sim), write_bdbr = True, write_bits = False, write_psnr = False,
+                                                   layering_func = lambda t: (-1,1) if "SCAL" not in t else (-1,),
+                                                   filter_func = lambda t: True if ("BL" in t and "EL" in t) or "SCAL" in t else False)
 
     anchor_summary = TU.make_AnchorList_multiAnchor_definition(test_names,
                                                                bdbr_anchor_func = lambda t: tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1]),

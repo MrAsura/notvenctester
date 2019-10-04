@@ -170,8 +170,8 @@ __AL_B_HEADER = r"Bit results"
 __AL_PSNR_HEADER = r"PSNR results"
 __AL_TIME_HEADER = r"Time results"
 __AL_TEST = r"Test:"
-__AL_ANCHOR = r"Anchor:"
-__AL_SEQ = r"Sequences"
+__AL_ANCHOR = r"Sequences \ Anchor:"
+#__AL_SEQ = r"Sequences"
 
 """
 Handle writing the anchor list structure
@@ -190,7 +190,7 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
 
         header_offset = 0
         row = sheet.max_row + 1
-        col = 3 #sheet.max_column + 1
+        #col = 0 #sheet.max_column + 1
         
         if 'first_row' not in locals():
             first_row = row + 1
@@ -198,72 +198,78 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
         # write bdrate tests
         if bdbr:
             if 'bdcol' not in locals():
-                bdcol = sheet.max_column + 2
+                bdcol = sheet.max_column + 3
                 sheet.cell(row = static_row, column = bdcol - 1).value = __AL_BD_HEADER
                 sheet.cell(row = static_row + 1, column = bdcol - 1).value = __AL_TEST
                 sheet.cell(row = static_row + 2, column = bdcol - 1).value = __AL_ANCHOR
-                sheet.cell(row = static_row + 3, column = bdcol - 1).value = __AL_SEQ
-                __writeAnchorListHeader(sheet, bdbr, static_row + 1, bdcol)
-                header_offset = static_row + 3
+                #sheet.cell(row = static_row + 3, column = bdcol - 1).value = __AL_SEQ
+                bdcol_end = __writeAnchorListHeader(sheet, bdbr, static_row + 1, bdcol, False)
+                header_offset = static_row + 1
 
             __writeAnchorListData(sheet, seq_ref[seq], bdbr, row + header_offset, bdcol,
                                      data_func = lambda data, test: data[test][_KBS] + data[test][_PSNR],
                                      data_format = __S_BDRATE_FORMAT,
                                      number_format = '0.00%')
+                # Write sequence
+            sheet.cell(row = row + header_offset, column = bdcol - 1).value = __AL_SEQ_FORMAT.format(seq)
                                    
 
         # write bit tests
         if bits:
             if 'bcol' not in locals():
-                bcol = sheet.max_column + 2
+                bcol = sheet.max_column + 3
                 sheet.cell(row = static_row, column = bcol - 1).value = __AL_B_HEADER
                 sheet.cell(row = static_row + 1, column = bcol - 1).value = __AL_TEST
                 sheet.cell(row = static_row + 2, column = bcol - 1).value = __AL_ANCHOR
-                sheet.cell(row = static_row + 3, column = bcol - 1).value = __AL_SEQ
-                __writeAnchorListHeader(sheet, bits, row, bcol)
-                header_offset = static_row + 3
+                #sheet.cell(row = static_row + 3, column = bcol - 1).value = __AL_SEQ
+                bcol_end = __writeAnchorListHeader(sheet, bits, static_row + 1, bcol)
+                header_offset = static_row + 1
 
-            __writeAnchorListData(sheet, seq_ref[seq], bits, row, bcol,
+            __writeAnchorListData(sheet, seq_ref[seq], bits, row + header_offset, bcol,
                                      data_func = lambda data, test: data[test][_KB],
                                      data_format = __S_BIT_FORMAT,
                                      abs_format = __S_BIT_ABS_FORMAT)
+                # Write sequence
+            sheet.cell(row = row + header_offset, column = bcol - 1).value = __AL_SEQ_FORMAT.format(seq)
 
         # write psnr tests
         if psnr:
             if 'pcol' not in locals():
-                pcol = sheet.max_column + 2
-                sheet.cell(row = static_row, column = pcol - 1).value = __AL_B_HEADER
+                pcol = sheet.max_column + 3
+                sheet.cell(row = static_row, column = pcol - 1).value = __AL_PSNR_HEADER
                 sheet.cell(row = static_row + 1, column = pcol - 1).value = __AL_TEST
                 sheet.cell(row = static_row + 2, column = pcol - 1).value = __AL_ANCHOR
-                sheet.cell(row = static_row + 3, column = pcol - 1).value = __AL_SEQ
-                __writeAnchorListHeader(sheet, psnr, row, pcol)
-                header_offset = static_row + 3
+                #sheet.cell(row = static_row + 3, column = pcol - 1).value = __AL_SEQ
+                pcol_end = __writeAnchorListHeader(sheet, psnr, static_row + 1, pcol)
+                header_offset = static_row + 1
             
-            __writeAnchorListData(sheet, seq_ref[seq], psnr, row, pcol,
+            __writeAnchorListData(sheet, seq_ref[seq], psnr, row + header_offset, pcol,
                                      data_func = lambda data, test: data[test][_PSNR],
                                      data_format = __S_PSNR_FORMAT,
                                      abs_format = __S_PSNR_ABS_FORMAT,
                                      data_style = 'Comma',
                                      def_val = 0)
+                # Write sequence
+            sheet.cell(row = row + header_offset, column = pcol - 1).value = __AL_SEQ_FORMAT.format(seq)
 
         # write time matrix
         if time:
             if 'tcol' not in locals():
-                tcol = sheet.max_column + 2
-                sheet.cell(row = static_row, column = tcol - 1).value = __AL_B_HEADER
+                tcol = sheet.max_column + 3
+                sheet.cell(row = static_row, column = tcol - 1).value = __AL_TIME_HEADER
                 sheet.cell(row = static_row + 1, column = tcol - 1).value = __AL_TEST
                 sheet.cell(row = static_row + 2, column = tcol - 1).value = __AL_ANCHOR
-                sheet.cell(row = static_row + 3, column = tcol - 1).value = __AL_SEQ
-                __writeAnchorListHeader(sheet, time, row, tcol)
-                header_offset = static_row + 3
+                #sheet.cell(row = static_row + 3, column = tcol - 1).value = __AL_SEQ
+                tcol_end = __writeAnchorListHeader(sheet, time, static_row + 1, tcol)
+                header_offset = static_row + 1
             
-            __writeAnchorListData(sheet, seq_ref[seq], time, row, tcol,
+            __writeAnchorListData(sheet, seq_ref[seq], time, row + header_offset, tcol,
                                      data_func = lambda data, test: data[test][_TIME],
                                      data_format = __S_TIME_FORMAT,
                                      abs_format = __S_TIME_ABS_FORMAT)
 
-        # Write sequence
-        sheet.cell(row = row + header_offset, column = col).value = __AL_SEQ_FORMAT.format(seq)
+            # Write sequence
+            sheet.cell(row = row + header_offset, column = tcol - 1).value = __AL_SEQ_FORMAT.format(seq)
 
 
     # Make columns wider
@@ -275,22 +281,22 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
     color_rules = []
     #BDRATE
     if bdbr:
-        form_ranges.append("{}:{}".format(get_column_letter(bdcol)+str(first_row),get_column_letter(bdcol + len(bdbr.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(bdcol)+str(first_row),get_column_letter(bdcol_end)+str(row)))
         color_rules.append(ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
                                           mid_type='num', mid_value=0, mid_color='FFFFFF',
                                           end_type='percentile', end_value=10, end_color='F8696B' ))
     if bits:
-        form_ranges.append("{}:{}".format(get_column_letter(bcol)+str(first_row),get_column_letter(bcol + len(bits.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(bcol)+str(first_row),get_column_letter(bcol_end)+str(row)))
         color_rules.append(ColorScaleRule(start_type='min', start_color='4F81BD',
                                           mid_type='num', mid_value=1, mid_color='FFFFFF',
                                           end_type='percentile', end_value=80, end_color='F8696B' ))
     if psnr:
-        form_ranges.append("{}:{}".format(get_column_letter(pcol)+str(first_row),get_column_letter(pcol + len(psnr.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(pcol)+str(first_row),get_column_letter(pcol_end)+str(row)))
         color_rules.append(ColorScaleRule(start_type='percentile', start_value=90, start_color='63BE7B',
                                           mid_type='num', mid_value=0, mid_color='FFFFFF',
                                           end_type='percentile', end_value=10, end_color='F8696B' ))
     if time:
-        form_ranges.append("{}:{}".format(get_column_letter(tcol)+str(first_row),get_column_letter(tcol + len(time.keys()))+str(row)))
+        form_ranges.append("{}:{}".format(get_column_letter(tcol)+str(first_row),get_column_letter(tcol_end)+str(row)))
         color_rules.append(ColorScaleRule(start_type='min', start_color='9BDE55',#'63BE7B',
                                           mid_type='num', mid_value=1, mid_color='FFFFFF',
                                           end_type='percentile', end_value=80, end_color='00BBEF'))
@@ -299,37 +305,45 @@ def __writeAnchorList(sheet, data_refs, order = None, *, bdbr, bits, psnr, time,
         sheet.conditional_formatting.add(f_range, c_rule)
 
 
-def __writeAnchorListHeader(sheet, sub_def, row, col):
+def __writeAnchorListHeader(sheet, sub_def, row, col, allow_none = True):
     #Write horizontal headers/test names
     tmp_col = col
     for (test,anchors) in sub_def.items():
         for anchor in anchors:
+            if not allow_none and not anchor:
+                continue
             sheet.cell(row = row, column = tmp_col).value = test
             sheet.cell(row = row + 1, column = tmp_col).value = anchor
             tmp_col += 1
+    return tmp_col - 1
 
 
-def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent', abs_format = None):
+def __writeAnchorListData(sheet, ref, sub_def, row, col, *, data_func, data_format, number_format = None, number_style = 'Percent', abs_format = None, abs_style = 'Comma'):
     from TestSuite import parseSheetLayer
     #final_r = row+len(data.keys())
     #final_c = col+len(data.keys())
-    for (c, (test, anchors)) in zip(range(col,col+len(sub_def.keys())), sub_def.items()):
+    c = col
+    for (test, anchors) in sub_def.items():
         for anchor in anchors:
             value_format = data_format
+            value_style = number_style
             anchor_res = []
             if not anchor:
                 if abs_format:
                     value_format = abs_format
+                    if abs_style:
+                        value_style = abs_style
                 else:
                     continue
             else:
                 anchor_res =[__SR_FORMAT.format(sheet=parseSheetLayer(anchor)[0],cell=cl) for cl in data_func(ref, anchor)]
             test_res =[__SR_FORMAT.format(sheet=parseSheetLayer(test)[0],cell=cl) for cl in data_func(ref, test)]
-            sheet.cell(row = row, column = c).value = value_format.format(*(test_res+anchor_res))
-            sheet.cell(row = row, column = c).style = number_style
+            sheet.cell(row = row, column = c).value = value_format.format(*(anchor_res + test_res))
+            sheet.cell(row = row, column = c).style = value_style
             if number_format:
                 sheet.cell(row = row, column = c).number_format = number_format
-            sheet.cell(row=row,column=c).alignment = xl.styles.Alignment(horizontal='center')
+            sheet.cell(row= row, column= c).alignment = xl.styles.Alignment(horizontal='center')
+            c += 1
     # Set conditional coloring
     #form_range = "{}:{}".format(get_column_letter(col)+str(row),get_column_letter(final_c)+str(final_r))
     #sheet.conditional_formatting.add(form_range, color_scale_rule)

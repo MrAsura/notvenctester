@@ -112,7 +112,7 @@ make BDBRMatrix definition ()
 @return a BDBRMatrix definition
 """
 def make_BDBRMatrix_definition(test_names: Iterable[str], layering_func: Callable[[str],Tuple[int]] = lambda _: (-1,), filter_func: Callable[[str],bool] = lambda _: True, write_bdbr: bool = True, write_bits: bool = True, write_psnr: bool = True, write_time: bool = True) -> dict:
-    layers = {name : layering_func(name) for name in test_names if filter_func(name)}
+    layers = {name : layering_func(name) if filter_func(name) else tuple() for name in test_names}
     return create_BDBRMatrix_definition(layers, write_bdbr, write_bits, write_psnr, write_time)
 
 T = TypeVar('T')
