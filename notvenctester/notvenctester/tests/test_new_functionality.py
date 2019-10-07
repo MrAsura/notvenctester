@@ -14,8 +14,8 @@ def main():
     in_names = cfg.class_sequence_names[cfg.hevc_A] + cfg.class_sequence_names[cfg.hevc_B]
     ver = 20
     shared_param = ("--preset", "ultrafast", "--gop", "0", "--no-tmvp")
-    thread_range = (4,6,8,10,12,14)
-    owf_range = (2,4,8,16)
+    thread_range = (13,14,15,16)#(4,6,8,10,12,14)
+    owf_range = (1,2,3)#(2,4,8,16)
     outname = "skvz_thread_owf_test_v{}".format(ver)
 
     # Set shared param
@@ -67,9 +67,12 @@ def main():
                                                    filter_func = lambda t: True if ("BL" in t and "EL" in t) or "SCAL" in t else False)
 
     anchor_summary = TU.make_AnchorList_multiAnchor_definition(test_names,
-                                                               bdbr_anchor_func = lambda t: tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1]),
-                                                               time_anchor_func = lambda t: (None,) + tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1]),
-                                                               test_filter = lambda t: True if "SCAL" in t else False )
+                                                               global_filter = lambda t: True if "SCAL" in t else False,
+                                                               bdbr_anchor_func = TU.anchorFuncFactory_match_layer(
+                                                                   lambda t: tuple(a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a))),
+                                                               bdbr_layer_func = TU.layerFuncFactory([[None, 1],]),
+                                                               time_anchor_func = TU.anchorFuncFactory_match_layer(
+                                                                   lambda t: (None,) + tuple((a,l) if l >= 0 else a for a in sim_names if (t.split(sep='_')[1] in a) and (t.split(sep='_')[2] in a) for l in [-1, 1])))
 
     summaries = {sn_BDBRM: matrix_summary,
                  sn_ANCHOR: anchor_summary}
